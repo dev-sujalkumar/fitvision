@@ -1,0 +1,447 @@
+.workout-planner-container {
+  padding: 20px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  min-height: 100vh;
+  color: #fff;
+}
+
+/* Header */
+.planner-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.planner-header h1 {
+  font-size: 2.8em;
+  margin-bottom: 10px;
+  background: linear-gradient(45deg, #00ff00, #00bbff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.planner-header p {
+  font-size: 1.2em;
+  color: #aaa;
+}
+
+/* Goals Section */
+.goals-section {
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  background: rgba(0, 255, 0, 0.05);
+  border: 2px solid rgba(0, 255, 0, 0.15);
+  border-radius: 12px;
+  padding: 25px;
+  margin-bottom: 40px;
+}
+
+.goals-section h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #00ff00;
+  font-size: 1.5em;
+}
+
+.goals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  align-items: end;
+}
+
+.goal-card {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.goal-card label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: #00ff00;
+  font-size: 0.9em;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.goal-card input {
+  flex: 1;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  color: #00ff00;
+  border-radius: 4px;
+  font-size: 1em;
+}
+
+.goal-card input:focus {
+  outline: none;
+  border-color: #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
+.input-group span {
+  color: #aaa;
+  font-size: 0.9em;
+}
+
+.btn-save {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #00ff00, #00aa00);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.btn-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 255, 0, 0.3);
+}
+
+/* Statistics */
+.planner-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto 40px;
+}
+
+.stat-box {
+  background: rgba(0, 255, 0, 0.08);
+  border: 2px solid rgba(0, 255, 0, 0.2);
+  border-radius: 12px;
+  padding: 25px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.stat-box:hover {
+  border-color: rgba(0, 255, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 255, 0, 0.2);
+  transform: translateY(-4px);
+}
+
+.stat-number {
+  font-size: 2.5em;
+  font-weight: bold;
+  color: #00ff00;
+  margin-bottom: 10px;
+}
+
+.stat-label {
+  font-size: 0.95em;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Weekly Plan */
+.weekly-plan {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.weekly-plan h2 {
+  margin-bottom: 25px;
+  color: #00ff00;
+  font-size: 1.8em;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.day-card {
+  background: rgba(0, 255, 0, 0.05);
+  border: 2px solid rgba(0, 255, 0, 0.15);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.day-card:hover {
+  border-color: rgba(0, 255, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 255, 0, 0.1);
+}
+
+.day-card h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #00ff00;
+  font-size: 1.3em;
+  border-bottom: 2px solid rgba(0, 255, 0, 0.2);
+  padding-bottom: 10px;
+}
+
+.exercises-list {
+  min-height: 100px;
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.no-exercises {
+  color: #666;
+  font-style: italic;
+  text-align: center;
+  padding: 30px 10px;
+}
+
+.exercise-item {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  border-radius: 8px;
+  border-left: 3px solid #00ff00;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.exercise-item.gym {
+  border-left-color: #ffaa00;
+}
+
+.exercise-item:hover {
+  background: rgba(0, 255, 0, 0.1);
+}
+
+.exercise-info {
+  flex: 1;
+}
+
+.exercise-name {
+  margin: 0;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1em;
+}
+
+.exercise-details {
+  margin: 4px 0 0 0;
+  color: #aaa;
+  font-size: 0.85em;
+}
+
+.btn-remove {
+  background: rgba(255, 68, 68, 0.8);
+  color: #fff;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.btn-remove:hover {
+  background: #ff0000;
+  transform: scale(1.1);
+}
+
+.btn-add-exercise {
+  width: 100%;
+  padding: 10px;
+  background: rgba(0, 255, 0, 0.2);
+  border: 1px dashed rgba(0, 255, 0, 0.5);
+  color: #00ff00;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-add-exercise:hover {
+  background: rgba(0, 255, 0, 0.3);
+  border-style: solid;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid rgba(0, 255, 0, 0.3);
+  border-radius: 12px;
+  padding: 30px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 25px;
+  color: #00ff00;
+  font-size: 1.5em;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #00ff00;
+}
+
+.form-group select,
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 1em;
+}
+
+.form-group select:focus,
+.form-group input:focus {
+  outline: none;
+  border-color: #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
+.form-group select option {
+  background: #16213e;
+  color: #fff;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+.btn-primary {
+  flex: 1;
+  padding: 12px;
+  background: linear-gradient(135deg, #00ff00, #00aa00);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 255, 0, 0.3);
+}
+
+.btn-secondary {
+  flex: 1;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .week-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .workout-planner-container {
+    padding: 15px;
+  }
+
+  .planner-header h1 {
+    font-size: 2em;
+  }
+
+  .goals-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .week-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    width: 95%;
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .planner-header h1 {
+    font-size: 1.5em;
+  }
+
+  .planner-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stat-number {
+    font-size: 2em;
+  }
+
+  .day-card h3 {
+    font-size: 1.1em;
+  }
+
+  .modal-buttons {
+    flex-direction: column;
+  }
+}

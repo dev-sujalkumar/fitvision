@@ -1,0 +1,17 @@
+/* App layout with sidebar */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-darkest);
+}
+
+.app-main {
+  flex: 1;
+  min-height: 100vh;
+  transition: margin-left var(--transition-normal);
+}
+
+.page-content {
+  padding: 0;
+  animation: pageEnter 0.4s ease-out;
+}
