@@ -44,7 +44,7 @@ const initDB = () => {
 
       // Create user preferences store
       if (!db.objectStoreNames.contains(STORES.USER_PREFERENCES)) {
-        const prefsStore = db.createObjectStore(STORES.USER_PREFERENCES, { keyPath: 'key' });
+        db.createObjectStore(STORES.USER_PREFERENCES, { keyPath: 'key' });
       }
 
       // Create food diary store
@@ -72,8 +72,10 @@ export const saveYogaSession = async (session) => {
     const store = transaction.objectStore(STORES.YOGA_SESSIONS);
 
     const sessionData = {
-      pose: session.pose,
-      duration: session.duration,
+      pose: session.pose || session.poseName || 'Yoga Pose',
+      poseName: session.poseName || session.pose || 'Yoga Pose',
+      duration: session.duration || 0,
+      caloriesBurned: session.caloriesBurned || Math.round((session.duration || 0) * 0.08 + 12),
       timestamp: session.timestamp || new Date().getTime(),
       confidence: session.confidence || 0.97,
       notes: session.notes || '',
@@ -99,30 +101,24 @@ export const saveYogaSession = async (session) => {
 export const getYogaHistory = async (limit = 50) => {
   try {
     const db = await initDB();
+    if (!db.objectStoreNames.contains(STORES.YOGA_SESSIONS)) {
+      return [];
+    }
     const transaction = db.transaction([STORES.YOGA_SESSIONS], 'readonly');
     const store = transaction.objectStore(STORES.YOGA_SESSIONS);
-    const index = store.index('timestamp');
 
-    return new Promise((resolve, reject) => {
-      const request = index.openCursor(null, 'prev');
-      const sessions = [];
-      let count = 0;
-
-      request.onsuccess = (event) => {
-        const cursor = event.target.result;
-        if (cursor && count < limit) {
-          sessions.push(cursor.value);
-          count++;
-          cursor.continue();
-        } else {
-          resolve(sessions);
-        }
+    return new Promise((resolve) => {
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const sessions = request.result || [];
+        sessions.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        resolve(sessions.slice(0, limit));
       };
-      request.onerror = () => reject(new Error('Failed to retrieve yoga history'));
+      request.onerror = () => resolve([]);
     });
   } catch (error) {
     console.error('Error retrieving yoga history:', error);
-    throw error;
+    return [];
   }
 };
 
@@ -136,10 +132,13 @@ export const saveGymWorkout = async (workout) => {
     const store = transaction.objectStore(STORES.GYM_WORKOUTS);
 
     const workoutData = {
-      exercise: workout.exercise,
+      exercise: workout.exercise || workout.exerciseType || workout.exerciseName || 'Gym Workout',
+      exerciseName: workout.exerciseName || workout.exercise || workout.exerciseType || 'Gym Workout',
+      exerciseType: workout.exerciseType || workout.exercise || 'GYM',
       reps: workout.reps || 0,
       sets: workout.sets || 0,
       duration: workout.duration || 0,
+      caloriesBurned: workout.caloriesBurned || Math.round((workout.reps || 0) * 5 + (workout.duration || 0) * 0.35 + 8),
       timestamp: workout.timestamp || new Date().getTime(),
       formQuality: workout.formQuality || 0,
       notes: workout.notes || '',
@@ -165,31 +164,88 @@ export const saveGymWorkout = async (workout) => {
 export const getGymWorkoutHistory = async (exercise = null, limit = 50) => {
   try {
     const db = await initDB();
+    if (!db.objectStoreNames.contains(STORES.GYM_WORKOUTS)) {
+      return [];
+    }
     const transaction = db.transaction([STORES.GYM_WORKOUTS], 'readonly');
     const store = transaction.objectStore(STORES.GYM_WORKOUTS);
-    const index = store.index('timestamp');
 
-    return new Promise((resolve, reject) => {
-      const request = index.openCursor(null, 'prev');
-      const workouts = [];
-      let count = 0;
-
-      request.onsuccess = (event) => {
-        const cursor = event.target.result;
-        if (cursor && count < limit) {
-          if (!exercise || cursor.value.exercise === exercise) {
-            workouts.push(cursor.value);
-            count++;
-          }
-          cursor.continue();
-        } else {
-          resolve(workouts);
+    return new Promise((resolve) => {
+      const request = store.getAll();
+      request.onsuccess = () => {
+        let workouts = request.result || [];
+        if (exercise) {
+          workouts = workouts.filter(
+            w => w.exercise === exercise || w.exerciseType === exercise || w.exerciseName === exercise
+          );
         }
+        workouts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        resolve(workouts.slice(0, limit));
       };
-      request.onerror = () => reject(new Error('Failed to retrieve gym workout history'));
+      request.onerror = () => resolve([]);
     });
   } catch (error) {
     console.error('Error retrieving gym workout history:', error);
+    return [];
+  }
+};
+
+/**
+ * Delete a gym workout by ID
+ */
+export const deleteGymWorkout = async (id) => {
+  try {
+    const db = await initDB();
+    const transaction = db.transaction([STORES.GYM_WORKOUTS], 'readwrite');
+    const store = transaction.objectStore(STORES.GYM_WORKOUTS);
+
+    return new Promise((resolve, reject) => {
+      const request = store.delete(id);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => reject(new Error('Failed to delete gym workout'));
+    });
+  } catch (error) {
+    console.error('Error deleting gym workout:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a yoga session by ID
+ */
+export const deleteYogaSession = async (id) => {
+  try {
+    const db = await initDB();
+    const transaction = db.transaction([STORES.YOGA_SESSIONS], 'readwrite');
+    const store = transaction.objectStore(STORES.YOGA_SESSIONS);
+
+    return new Promise((resolve, reject) => {
+      const request = store.delete(id);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => reject(new Error('Failed to delete yoga session'));
+    });
+  } catch (error) {
+    console.error('Error deleting yoga session:', error);
+    throw error;
+  }
+};
+
+/**
+ * Clear all gym and yoga workout history
+ */
+export const clearAllWorkoutHistory = async () => {
+  try {
+    const db = await initDB();
+    const tx = db.transaction([STORES.GYM_WORKOUTS, STORES.YOGA_SESSIONS], 'readwrite');
+    tx.objectStore(STORES.GYM_WORKOUTS).clear();
+    tx.objectStore(STORES.YOGA_SESSIONS).clear();
+
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(new Error('Failed to clear workout history'));
+    });
+  } catch (error) {
+    console.error('Error clearing workout history:', error);
     throw error;
   }
 };
@@ -295,21 +351,50 @@ export const saveFoodEntry = async (entry) => {
 export const getFoodDiary = async (date = null) => {
   try {
     const db = await initDB();
+    if (!db.objectStoreNames.contains(STORES.FOOD_DIARY)) {
+      return [];
+    }
     const transaction = db.transaction([STORES.FOOD_DIARY], 'readonly');
     const store = transaction.objectStore(STORES.FOOD_DIARY);
-    const index = store.index('date');
-
     const targetDate = date || new Date().toISOString().split('T')[0];
 
-    return new Promise((resolve, reject) => {
-      const request = index.getAll(targetDate);
-      request.onsuccess = () => {
-        resolve(request.result);
-      };
-      request.onerror = () => reject(new Error('Failed to retrieve food diary'));
+    return new Promise((resolve) => {
+      if (store.indexNames.contains('date')) {
+        const index = store.index('date');
+        const request = index.getAll(targetDate);
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => resolve([]);
+      } else {
+        const request = store.getAll();
+        request.onsuccess = () => {
+          const results = (request.result || []).filter(e => !targetDate || e.date === targetDate);
+          resolve(results);
+        };
+        request.onerror = () => resolve([]);
+      }
     });
   } catch (error) {
     console.error('Error retrieving food diary:', error);
+    return [];
+  }
+};
+
+/**
+ * Delete food entry by ID
+ */
+export const deleteFoodEntry = async (id) => {
+  try {
+    const db = await initDB();
+    const transaction = db.transaction([STORES.FOOD_DIARY], 'readwrite');
+    const store = transaction.objectStore(STORES.FOOD_DIARY);
+
+    return new Promise((resolve, reject) => {
+      const request = store.delete(id);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => reject(new Error('Failed to delete food entry'));
+    });
+  } catch (error) {
+    console.error('Error deleting food entry:', error);
     throw error;
   }
 };
@@ -414,11 +499,14 @@ export const clearAllData = async () => {
   }
 };
 
-export default {
+const storage = {
   saveYogaSession,
   getYogaHistory,
   saveGymWorkout,
   getGymWorkoutHistory,
+  deleteGymWorkout,
+  deleteYogaSession,
+  clearAllWorkoutHistory,
   saveUserPreference,
   getUserPreference,
   saveFoodEntry,
@@ -427,6 +515,8 @@ export default {
   getPostureMeasurementHistory,
   clearAllData,
 };
+
+export default storage;
 
 
 /**

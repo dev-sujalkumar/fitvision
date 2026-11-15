@@ -1,7 +1,9 @@
-import React, { useState } from 'react'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom'
 
 import Navbar from './components/Navbar/Navbar'
+import TopBar from './components/TopBar/TopBar'
+import CommandPalette from './components/CommandPalette/CommandPalette'
 import Home from './pages/Home/Home'
 import Yoga from './pages/Yoga/Yoga'
 import Gym from './pages/Gym/Gym'
@@ -9,14 +11,25 @@ import Dashboard from './pages/Dashboard/Dashboard'
 import WorkoutHistory from './pages/WorkoutHistory/WorkoutHistory'
 import WorkoutPlanner from './pages/WorkoutPlanner/WorkoutPlanner'
 import Nutrition from './pages/Nutrition/Nutrition'
-import About from './pages/About/About'
-import Tutorials from './pages/Tutorials/Tutorials'
 import VideoAnalysis from './pages/VideoAnalysis/VideoAnalysis'
 
 import './App.css'
 
 export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+
+  // Listen for Ctrl+K / Cmd+K global shortcut
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setIsCommandPaletteOpen((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const sidebarWidth = sidebarCollapsed ? 68 : 240
 
@@ -34,6 +47,12 @@ export default function App() {
           className="app-main page-content"
           style={{ marginLeft: sidebarWidth, transition: 'margin-left 0.3s cubic-bezier(0.4,0,0.2,1)' }}
         >
+          <TopBar
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+            onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          />
+
           <Routes>
             <Route path='/' element={<Home />} />
             <Route path='/start' element={<Yoga />} />
@@ -42,11 +61,17 @@ export default function App() {
             <Route path='/history' element={<WorkoutHistory />} />
             <Route path='/planner' element={<WorkoutPlanner />} />
             <Route path='/nutrition' element={<Nutrition />} />
-            <Route path='/about' element={<About />} />
-            <Route path='/tutorials' element={<Tutorials />} />
             <Route path='/video-analysis' element={<VideoAnalysis />} />
+            <Route path='/about' element={<Navigate to="/" replace />} />
+            <Route path='/tutorials' element={<Navigate to="/" replace />} />
+            <Route path='*' element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+        />
       </div>
     </Router>
   )
