@@ -8,18 +8,26 @@ const FEATURE_CARDS = [
   {
     icon: '🧘',
     title: 'Movement & Yoga Studio',
-    desc: 'Real-time MoveNet Thunder AI with 28 Yoga disciplines. Sanskrit taxonomy, live joint angle badges, depth ROM, and spoken voice coaching.',
+    desc: 'Real-time MoveNet Thunder AI with 8 core photographic Yoga disciplines. Sanskrit taxonomy, live joint angle badges, depth ROM, and spoken voice coaching.',
     path: '/start',
     color: '#8b5cf6',
-    badge: '28 Poses Active',
+    badge: '8 Poses Active',
   },
   {
     icon: '💪',
     title: 'Gym AI Strength Trainer',
-    desc: 'Intelligent rep counter for 10 foundational strength exercises with form guidance, set telemetry, rest countdowns, and 3 skeleton themes.',
+    desc: 'Intelligent rep counter for 15 strength disciplines including Lateral Raises, Front Raises, and Overhead Press with form guidance, set telemetry, and rest countdowns.',
     path: '/gym',
     color: '#ef4444',
-    badge: '10 Exercises',
+    badge: '15 Exercises',
+  },
+  {
+    icon: '🥗',
+    title: 'Food Recognition & Nutrition AI',
+    desc: 'UECFOOD-256 deep learning model with 3D volumetric depth estimation, physical density calibration, and instant macronutrient breakdowns.',
+    path: '/nutrition',
+    color: '#10b981',
+    badge: '90%+ Precision',
   },
   {
     icon: '🎬',
@@ -45,21 +53,13 @@ const FEATURE_CARDS = [
     color: '#f59e0b',
     badge: 'Auto-Presets',
   },
-  {
-    icon: '🥗',
-    title: 'AI Vision Nutrition Studio',
-    desc: 'Deep learning food recognition with spatial plate decomposition, Open Food Facts global database, macro gauges, and clinical Nutri-Score.',
-    path: '/nutrition',
-    color: '#10b981',
-    badge: '100M+ Foods',
-  },
 ]
 
 const STATS = [
-  { value: '28', label: 'Yoga Postures' },
-  { value: '10', label: 'Gym Exercises' },
-  { value: 'Thunder AI', label: 'MoveNet Precision' },
-  { value: 'Voice Coach', label: 'Spoken AI Guidance' },
+  { value: '8', label: 'Yoga Postures' },
+  { value: '15', label: 'Gym Exercises' },
+  { value: '256', label: 'Recognized Foods' },
+  { value: '90%+', label: 'Volumetric Precision' },
 ]
 
 const HIGHLIGHTS = [
@@ -163,6 +163,28 @@ const SAMPLE_INTERACTIVE_ITEMS = {
       muscles: ['Biceps Brachii', 'Brachialis', 'Forearms'],
       cals: '5.5 kcal/min',
       cue: 'Keep elbows tucked tightly to ribs. Curl weights upward with no hip swing, squeeze biceps hard at top, lower slowly.',
+    },
+    {
+      id: 'lateral_raise',
+      name: 'Side Lateral Raise',
+      sanskrit: 'Shoulder Cap Isolation',
+      level: 'Beginner',
+      focus: 'Lateral deltoid cap & shoulder width',
+      angles: 'Shoulder Abduction 20° to 80°',
+      muscles: ['Lateral Deltoids', 'Trapezius', 'Upper Back'],
+      cals: '6.0 kcal/min',
+      cue: 'Stand tall facing camera. Lead with elbows, raising arms laterally to shoulder height. Perfect for standing teacher demos.',
+    },
+    {
+      id: 'front_raise',
+      name: 'Front Dumbbell Raise',
+      sanskrit: 'Anterior Shoulder Isolation',
+      level: 'Beginner',
+      focus: 'Anterior deltoids & upper chest clavicular fibers',
+      angles: 'Shoulder Flexion 25° to 80°',
+      muscles: ['Anterior Deltoids', 'Upper Pecs', 'Core'],
+      cals: '5.8 kcal/min',
+      cue: 'Stand facing camera. Raise arms directly forward to shoulder height. Pause for a beat and lower under control.',
     },
     {
       id: 'plank',

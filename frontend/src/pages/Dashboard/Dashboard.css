@@ -147,11 +147,6 @@
   box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
 }
 
-.btn-dash-action.nutrition-glow:hover {
-  background: rgba(236, 72, 153, 0.2);
-  border-color: rgba(236, 72, 153, 0.6);
-  box-shadow: 0 8px 24px rgba(236, 72, 153, 0.3);
-}
 
 .btn-dash-action.demo-glow {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(239, 68, 68, 0.15));
@@ -986,7 +981,7 @@
   margin: 0;
 }
 
-/* Sessions Grid for Gym, Yoga, Nutrition */
+/* Sessions Grid for Gym and Yoga */
 .sessions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -1033,9 +1028,6 @@
   color: #f87171;
 }
 
-.session-pose-badge.nutrition {
-  color: #f472b6;
-}
 
 .session-date {
   font-size: 11.5px;

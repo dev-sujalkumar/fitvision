@@ -4,15 +4,15 @@
  */
 
 const DB_NAME = 'FitVisionAI';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // Object store names
 const STORES = {
   YOGA_SESSIONS: 'yogaSessions',
   GYM_WORKOUTS: 'gymWorkouts',
   USER_PREFERENCES: 'userPreferences',
-  FOOD_DIARY: 'foodDiary',
   POSTURE_MEASUREMENTS: 'postureMeasurements',
+  FOOD_DIARY: 'foodDiary',
 };
 
 /**
@@ -47,16 +47,16 @@ const initDB = () => {
         db.createObjectStore(STORES.USER_PREFERENCES, { keyPath: 'key' });
       }
 
-      // Create food diary store
-      if (!db.objectStoreNames.contains(STORES.FOOD_DIARY)) {
-        const foodStore = db.createObjectStore(STORES.FOOD_DIARY, { keyPath: 'id', autoIncrement: true });
-        foodStore.createIndex('date', 'date', { unique: false });
-      }
-
       // Create posture measurements store
       if (!db.objectStoreNames.contains(STORES.POSTURE_MEASUREMENTS)) {
         const postureStore = db.createObjectStore(STORES.POSTURE_MEASUREMENTS, { keyPath: 'id', autoIncrement: true });
         postureStore.createIndex('timestamp', 'timestamp', { unique: false });
+      }
+
+      // Create food diary store
+      if (!db.objectStoreNames.contains(STORES.FOOD_DIARY)) {
+        const foodStore = db.createObjectStore(STORES.FOOD_DIARY, { keyPath: 'id' });
+        foodStore.createIndex('timestamp', 'timestamp', { unique: false });
       }
     };
   });
@@ -295,109 +295,9 @@ export const getUserPreference = async (key) => {
   }
 };
 
-/**
- * Save food entry
- */
-export const saveFoodEntry = async (entry) => {
-  try {
-    const db = await initDB();
-    const transaction = db.transaction([STORES.FOOD_DIARY], 'readwrite');
-    const store = transaction.objectStore(STORES.FOOD_DIARY);
 
-    const foodData = {
-      name: entry.name,
-      calories: entry.calories || 0,
-      protein: entry.protein || 0,
-      carbs: entry.carbs || 0,
-      fat: entry.fat || 0,
-      fiber: entry.fiber || 0,
-      sugars: entry.sugars || 0,
-      sodiumMg: entry.sodiumMg || 0,
-      potassiumMg: entry.potassiumMg || 0,
-      calciumMg: entry.calciumMg || 0,
-      ironMg: entry.ironMg || 0,
-      magnesiumMg: entry.magnesiumMg || 0,
-      zincMg: entry.zincMg || 0,
-      folateMcg: entry.folateMcg || 0,
-      vitaminCMg: entry.vitaminCMg || 0,
-      vitaminAMcg: entry.vitaminAMcg || 0,
-      vitaminDMcg: entry.vitaminDMcg || 0,
-      vitaminB12Mcg: entry.vitaminB12Mcg || 0,
-      cholesterolMg: entry.cholesterolMg || 0,
-      items: entry.items || [],
-      estimateSource: entry.estimateSource || 'manual',
-      date: entry.date || new Date().toISOString().split('T')[0],
-      mealType: entry.mealType || 'other', // breakfast, lunch, dinner, snack, other
-      timestamp: entry.timestamp || new Date().getTime(),
-    };
 
-    return new Promise((resolve, reject) => {
-      const request = store.add(foodData);
-      request.onsuccess = () => {
-        console.log('Food entry saved with ID:', request.result);
-        resolve(request.result);
-      };
-      request.onerror = () => reject(new Error('Failed to save food entry'));
-    });
-  } catch (error) {
-    console.error('Error saving food entry:', error);
-    throw error;
-  }
-};
 
-/**
- * Get food diary for a specific date
- */
-export const getFoodDiary = async (date = null) => {
-  try {
-    const db = await initDB();
-    if (!db.objectStoreNames.contains(STORES.FOOD_DIARY)) {
-      return [];
-    }
-    const transaction = db.transaction([STORES.FOOD_DIARY], 'readonly');
-    const store = transaction.objectStore(STORES.FOOD_DIARY);
-    const targetDate = date || new Date().toISOString().split('T')[0];
-
-    return new Promise((resolve) => {
-      if (store.indexNames.contains('date')) {
-        const index = store.index('date');
-        const request = index.getAll(targetDate);
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => resolve([]);
-      } else {
-        const request = store.getAll();
-        request.onsuccess = () => {
-          const results = (request.result || []).filter(e => !targetDate || e.date === targetDate);
-          resolve(results);
-        };
-        request.onerror = () => resolve([]);
-      }
-    });
-  } catch (error) {
-    console.error('Error retrieving food diary:', error);
-    return [];
-  }
-};
-
-/**
- * Delete food entry by ID
- */
-export const deleteFoodEntry = async (id) => {
-  try {
-    const db = await initDB();
-    const transaction = db.transaction([STORES.FOOD_DIARY], 'readwrite');
-    const store = transaction.objectStore(STORES.FOOD_DIARY);
-
-    return new Promise((resolve, reject) => {
-      const request = store.delete(id);
-      request.onsuccess = () => resolve(true);
-      request.onerror = () => reject(new Error('Failed to delete food entry'));
-    });
-  } catch (error) {
-    console.error('Error deleting food entry:', error);
-    throw error;
-  }
-};
 
 /**
  * Save posture measurement
@@ -465,23 +365,133 @@ export const getPostureMeasurementHistory = async (limit = 50) => {
 };
 
 /**
+ * Save a food diary meal entry (IndexedDB with LocalStorage sync)
+ */
+export const saveFoodEntry = async (entry) => {
+  const foodItem = {
+    id: entry.id || `meal_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+    timestamp: entry.timestamp || Date.now(),
+    dateStr: entry.dateStr || new Date().toISOString().split('T')[0],
+    mealName: entry.mealName || 'Logged Meal',
+    dishes: entry.dishes || [],
+    totals: entry.totals || {
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    },
+    imageUrl: entry.imageUrl || null,
+    confidence: entry.confidence || 0.94,
+    nutriScore: entry.nutriScore || null,
+    notes: entry.notes || '',
+  };
+
+  // Sync to LocalStorage for instant access & fallback
+  try {
+    const localExisting = JSON.parse(localStorage.getItem('fitvision_food_diary') || '[]');
+    const updated = [foodItem, ...localExisting.filter(item => item.id !== foodItem.id)].slice(0, 100);
+    localStorage.setItem('fitvision_food_diary', JSON.stringify(updated));
+  } catch (lsErr) {
+    console.warn('LocalStorage food diary sync warning:', lsErr);
+  }
+
+  try {
+    const db = await initDB();
+    if (!db.objectStoreNames.contains(STORES.FOOD_DIARY)) {
+      return foodItem;
+    }
+    const transaction = db.transaction([STORES.FOOD_DIARY], 'readwrite');
+    const store = transaction.objectStore(STORES.FOOD_DIARY);
+
+    return new Promise((resolve) => {
+      const request = store.put(foodItem);
+      request.onsuccess = () => resolve(foodItem);
+      request.onerror = () => resolve(foodItem); // Fallback to localStorage entry
+    });
+  } catch (error) {
+    console.warn('IndexedDB food diary save failed, fallback succeeded:', error);
+    return foodItem;
+  }
+};
+
+/**
+ * Get food diary history (IndexedDB with LocalStorage fallback)
+ */
+export const getFoodDiary = async (limit = 50) => {
+  try {
+    const db = await initDB();
+    if (db.objectStoreNames.contains(STORES.FOOD_DIARY)) {
+      const transaction = db.transaction([STORES.FOOD_DIARY], 'readonly');
+      const store = transaction.objectStore(STORES.FOOD_DIARY);
+
+      const items = await new Promise((resolve) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => resolve([]);
+      });
+
+      if (items && items.length > 0) {
+        items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        return items.slice(0, limit);
+      }
+    }
+  } catch (error) {
+    console.warn('IndexedDB food diary read failed, reading from localStorage:', error);
+  }
+
+  // Fallback to LocalStorage
+  try {
+    const local = JSON.parse(localStorage.getItem('fitvision_food_diary') || '[]');
+    local.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    return local.slice(0, limit);
+  } catch (e) {
+    return [];
+  }
+};
+
+/**
+ * Delete a food diary entry by ID
+ */
+export const deleteFoodEntry = async (id) => {
+  // Delete from LocalStorage
+  try {
+    const local = JSON.parse(localStorage.getItem('fitvision_food_diary') || '[]');
+    const filtered = local.filter(item => item.id !== id);
+    localStorage.setItem('fitvision_food_diary', JSON.stringify(filtered));
+  } catch (lsErr) {
+    console.warn('LocalStorage food diary delete warning:', lsErr);
+  }
+
+  try {
+    const db = await initDB();
+    if (!db.objectStoreNames.contains(STORES.FOOD_DIARY)) {
+      return true;
+    }
+    const transaction = db.transaction([STORES.FOOD_DIARY], 'readwrite');
+    const store = transaction.objectStore(STORES.FOOD_DIARY);
+
+    return new Promise((resolve) => {
+      const request = store.delete(id);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(true);
+    });
+  } catch (error) {
+    console.warn('IndexedDB food diary delete failed, LocalStorage was updated:', error);
+    return true;
+  }
+};
+
+/**
  * Clear all data (for testing/reset)
  */
 export const clearAllData = async () => {
   try {
+    localStorage.removeItem('fitvision_food_diary');
     const db = await initDB();
-    const transaction = db.transaction(
-      [
-        STORES.YOGA_SESSIONS,
-        STORES.GYM_WORKOUTS,
-        STORES.USER_PREFERENCES,
-        STORES.FOOD_DIARY,
-        STORES.POSTURE_MEASUREMENTS,
-      ],
-      'readwrite'
-    );
+    const storeNames = Object.values(STORES).filter(name => db.objectStoreNames.contains(name));
+    const transaction = db.transaction(storeNames, 'readwrite');
 
-    Object.values(STORES).forEach(storeName => {
+    storeNames.forEach(storeName => {
       const store = transaction.objectStore(storeName);
       store.clear();
     });
@@ -509,10 +519,11 @@ const storage = {
   clearAllWorkoutHistory,
   saveUserPreference,
   getUserPreference,
-  saveFoodEntry,
-  getFoodDiary,
   savePostureMeasurement,
   getPostureMeasurementHistory,
+  saveFoodEntry,
+  getFoodDiary,
+  deleteFoodEntry,
   clearAllData,
 };
 

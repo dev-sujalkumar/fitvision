@@ -884,36 +884,16 @@ export const POSE_SVG_PRESETS = {
     `),
 };
 
-// Map poses to image sources: prefer photographic illustration, fallback to crisp anatomy
+// Map poses to image sources: strictly authentic photographic assets
 export const YOGA_POSE_IMAGES = {
   Tree: treeJpg,
   Chair: chairJpg,
   WarriorI: warriorJpg,
   WarriorII: warriorJpg,
-  WarriorIII: POSE_ILLUSTRATIONS.WarriorIII,
   DownwardDog: dogJpg,
-  UpwardDog: POSE_ILLUSTRATIONS.UpwardDog,
   Cobra: cobraJpg,
   Triangle: triangleJpg,
-  ExtendedSideAngle: POSE_ILLUSTRATIONS.ExtendedSideAngle,
-  Mountain: POSE_ILLUSTRATIONS.Mountain,
-  ChildsPose: POSE_ILLUSTRATIONS.ChildsPose,
-  Plank: POSE_ILLUSTRATIONS.Plank,
-  SidePlank: POSE_ILLUSTRATIONS.SidePlank,
-  Bridge: POSE_ILLUSTRATIONS.Bridge,
   Shoulderstand: shoulderstandJpg,
-  Bow: POSE_ILLUSTRATIONS.Bow,
-  Camel: POSE_ILLUSTRATIONS.Camel,
-  Cat: POSE_ILLUSTRATIONS.Cat,
-  Cow: POSE_ILLUSTRATIONS.Cow,
-  Boat: POSE_ILLUSTRATIONS.Boat,
-  HalfMoon: POSE_ILLUSTRATIONS.HalfMoon,
-  Eagle: POSE_ILLUSTRATIONS.Eagle,
-  Pigeon: POSE_ILLUSTRATIONS.Pigeon,
-  Goddess: POSE_ILLUSTRATIONS.Goddess,
-  Chaturanga: POSE_ILLUSTRATIONS.Chaturanga,
-  Staff: POSE_ILLUSTRATIONS.Staff,
-  Corpse: POSE_ILLUSTRATIONS.Corpse,
 };
 
 export const YOGA_POSE_VECTORS = POSE_SVG_PRESETS;

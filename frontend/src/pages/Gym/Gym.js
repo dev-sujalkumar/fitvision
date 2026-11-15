@@ -686,7 +686,7 @@ const GymPage = () => {
         <div>
           <div className="gym-eyebrow-pill">
             <span className="eyebrow-pulse-dot" />
-            <span>MoveNet Strength Engine · 10 Supported Movements</span>
+            <span>MoveNet Strength Engine · 15 Supported Movements</span>
           </div>
           <h1 className="gym-page-title">
             💪 Gym <span className="highlight-text-red">AI Trainer</span>
@@ -734,7 +734,7 @@ const GymPage = () => {
             ) : modelError ? (
               <span className="badge badge-error">⚠ Load Error</span>
             ) : (
-              <span className="badge badge-success">✓ 10 Exercises Ready</span>
+              <span className="badge badge-success">✓ 15 Exercises Ready</span>
             )}
           </div>
         </div>

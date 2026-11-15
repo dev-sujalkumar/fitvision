@@ -14,10 +14,10 @@ import { YOGA_POSES } from '../utils/yogaPoseLibrary';
 describe('High Accuracy Yoga Model & Biomechanical Engine', () => {
   jest.setTimeout(30000);
 
-  test('Model classes include 28 yoga poses plus 3 negative rejection classes', () => {
-    expect(YOGA_POSES.length).toBe(28);
-    expect(TOTAL_CLASSES_COUNT).toBe(31);
-    expect(ALL_MODEL_CLASSES.length).toBe(31);
+  test('Model classes include 8 core yoga poses plus 3 negative rejection classes', () => {
+    expect(YOGA_POSES.length).toBe(8);
+    expect(TOTAL_CLASSES_COUNT).toBe(11);
+    expect(ALL_MODEL_CLASSES.length).toBe(11);
 
     const negativeClasses = ALL_MODEL_CLASSES.filter((c) => c.isNegative);
     expect(negativeClasses.length).toBe(3);

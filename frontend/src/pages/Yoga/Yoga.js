@@ -275,7 +275,7 @@ export default function Yoga() {
         if (!isMounted) return;
         detectorRef.current = detector;
         setLoadingProgress(60);
-        setLoadingStatus('Compiling 28-Pose Neural Classifier & Biomechanical Engine...');
+        setLoadingStatus('Compiling 8-Pose Neural Classifier & Biomechanical Engine...');
 
         const classifier = await getOrInitYogaModel();
         if (!isMounted) return;
@@ -961,7 +961,7 @@ export default function Yoga() {
         <div>
           <div className="yoga-eyebrow-pill">
             <span className="eyebrow-dot" />
-            <span>MoveNet Thunder AI · 28 Movement Disciplines</span>
+            <span>MoveNet Thunder AI · 8 Core Photographic Disciplines</span>
           </div>
           <h1 className="yoga-page-title">
             🧘 Movement & Yoga <span className="highlight-text">Studio</span>
@@ -1006,7 +1006,7 @@ export default function Yoga() {
           <button
             className="btn-retrain-model"
             onClick={() => setIsTrainingOpen(true)}
-            title="Train the 28-class neural model in browser"
+            title="Train the 8-pose neural model in browser"
           >
             ⚡ Train AI Model
           </button>
@@ -1016,7 +1016,7 @@ export default function Yoga() {
             ) : modelError ? (
               <span className="badge badge-error">⚠ Load Error</span>
             ) : (
-              <span className="badge badge-success">✓ 28 Poses Active</span>
+              <span className="badge badge-success">✓ 8 Poses Active</span>
             )}
           </div>
         </div>
@@ -1068,7 +1068,7 @@ export default function Yoga() {
               </button>
             </div>
             <p className="modal-desc">
-              Train the 31-Class Deep Neural Architecture directly in your browser. Includes 28 Yoga Disciplines plus
+              Train the 11-Class Deep Neural Architecture directly in your browser. Includes 8 Core Photographic Yoga Disciplines plus
               explicit negative rejection manifolds (Seated Desk, Casual Idle, and Partial Body Occlusions) to prevent
               accidental triggers when sitting in front of your laptop.
             </p>
@@ -1169,7 +1169,7 @@ export default function Yoga() {
           <span className="step-circle">1</span>
           <div className="step-desc">
             <span className="step-tag">Step 1 · Explore</span>
-            <span className="step-title">Choose from 28 Poses</span>
+            <span className="step-title">Choose from 8 Core Poses</span>
           </div>
         </div>
         <span className="step-arrow">➔</span>
@@ -1200,7 +1200,7 @@ export default function Yoga() {
               <span className="search-icon">🔍</span>
               <input
                 type="text"
-                placeholder="Search 28 poses by English or Sanskrit name (e.g. Warrior, Vrikshasana)..."
+                placeholder="Search 8 core poses by English or Sanskrit name (e.g. Tree, Warrior, Vrikshasana)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pose-search-input"
@@ -1243,12 +1243,12 @@ export default function Yoga() {
           {/* Grid Header Info */}
           <div className="grid-status-row">
             <span className="grid-status-count">
-              Showing <strong>{filteredPoses.length}</strong> of 28 movement disciplines
+              Showing <strong>{filteredPoses.length}</strong> of 8 core movement disciplines
             </span>
             <span className="grid-status-hint">Click any pose to inspect & launch camera</span>
           </div>
 
-          {/* 28 Pose Cards Grid */}
+          {/* 8 Core Pose Cards Grid */}
           <div className="pose-cards-grid">
             {filteredPoses.length === 0 ? (
               <div className="no-poses-found">

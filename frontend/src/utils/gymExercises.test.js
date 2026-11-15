@@ -91,9 +91,9 @@ describe('RepCounter squat tracking', () => {
     expect(selected).toBe(foregroundPose);
   });
 
-  test('EXERCISE_PATTERNS contains 10 comprehensive exercises', () => {
+  test('EXERCISE_PATTERNS contains 15 comprehensive exercises including lateral & front raises', () => {
     const keys = Object.keys(EXERCISE_PATTERNS);
-    expect(keys.length).toBeGreaterThanOrEqual(10);
+    expect(keys.length).toBeGreaterThanOrEqual(15);
     expect(keys).toContain('SQUAT');
     expect(keys).toContain('PUSHUP');
     expect(keys).toContain('BICEP_CURL');
@@ -101,8 +101,42 @@ describe('RepCounter squat tracking', () => {
     expect(keys).toContain('LUNGE');
     expect(keys).toContain('SHOULDER_PRESS');
     expect(keys).toContain('LATERAL_RAISE');
+    expect(keys).toContain('FRONT_RAISE');
+    expect(keys).toContain('TRICEP_EXTENSION');
+    expect(keys).toContain('UPRIGHT_ROW');
+    expect(keys).toContain('PUNCHES');
+    expect(keys).toContain('CALF_RAISE');
     expect(keys).toContain('PLANK');
     expect(keys).toContain('CRUNCHES');
     expect(keys).toContain('HIGH_KNEES');
+  });
+
+  test('RepCounter lateral raise counts reps on arm elevation and descent', () => {
+    const counter = new RepCounter('LATERAL_RAISE');
+    // Keypoints with shoulders (5, 6), hips (11, 12), and elbows (7, 8)
+    const createLateralRaiseKeypoints = (angleDeg) => {
+      const kp = Array.from({ length: 17 }, () => [0, 0, 0.9]);
+      kp[5] = [280, 200, 0.9]; // lShoulder
+      kp[6] = [360, 200, 0.9]; // rShoulder
+      kp[11] = [280, 350, 0.9]; // lHip
+      kp[12] = [360, 350, 0.9]; // rHip
+
+      const rad = (angleDeg * Math.PI) / 180;
+      // Hip is (280, 350), Shoulder is (280, 200). Vector from shoulder to hip is (0, 150).
+      // Vector from shoulder to elbow rotated by angleDeg:
+      kp[7] = [280 - Math.sin(rad) * 100, 200 + Math.cos(rad) * 100, 0.9];
+      kp[8] = [360 + Math.sin(rad) * 100, 200 + Math.cos(rad) * 100, 0.9];
+      return kp;
+    };
+
+    advanceStateClock(counter);
+    counter.update(createLateralRaiseKeypoints(20)); // down
+    advanceStateClock(counter);
+    const raisedResult = counter.update(createLateralRaiseKeypoints(75)); // raised
+    expect(raisedResult.state).toBe('raised');
+    advanceStateClock(counter);
+    const repResult = counter.update(createLateralRaiseKeypoints(25)); // back down
+    expect(repResult.repCount).toBe(1);
+    expect(repResult.state).toBe('down');
   });
 });

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { YOGA_POSES } from '../../utils/yogaPoseLibrary';
 import { EXERCISE_PATTERNS } from '../../utils/gymExercises';
-import { FOOD_NUTRIENTS } from '../../utils/foodNutrition';
 import './CommandPalette.css';
 
 export default function CommandPalette({ isOpen, onClose }) {
@@ -26,14 +25,14 @@ export default function CommandPalette({ isOpen, onClose }) {
     // Core App Destinations
     { id: 'dest-home', title: 'Home Studio', category: 'Navigation', icon: '🏠', path: '/' },
     { id: 'dest-dash', title: 'Personal Dashboard & Stats', category: 'Navigation', icon: '📊', path: '/dashboard' },
-    { id: 'dest-yoga', title: 'Movement & Yoga Studio (28 Poses)', category: 'Discipline', icon: '🧘', path: '/start' },
-    { id: 'dest-gym', title: 'Gym AI Strength Trainer (10 Exercises)', category: 'Discipline', icon: '💪', path: '/gym' },
-    { id: 'dest-nutrition', title: 'Food Recognition & Nutrition Studio (100M+ Database)', category: 'Discipline', icon: '🥗', path: '/nutrition' },
+    { id: 'dest-yoga', title: 'Movement & Yoga Studio (8 Poses)', category: 'Discipline', icon: '🧘', path: '/start' },
+    { id: 'dest-gym', title: 'Gym AI Strength Trainer (15 Exercises)', category: 'Discipline', icon: '💪', path: '/gym' },
+    { id: 'dest-nutrition', title: 'Food Recognition & Nutrition AI (256 Foods)', category: 'Discipline', icon: '🥗', path: '/nutrition' },
     { id: 'dest-video', title: 'Video Motion Biomechanics Lab', category: 'Discipline', icon: '🎬', path: '/video-analysis' },
     { id: 'dest-plan', title: 'AI Workout Planner', category: 'Tool', icon: '📅', path: '/planner' },
     { id: 'dest-hist', title: 'Workout History & Analytics', category: 'Analytics', icon: '📋', path: '/history' },
 
-    // 28 Yoga Poses
+    // 8 Core Photographic Yoga Poses
     ...YOGA_POSES.map(p => ({
       id: `yoga-${p.id}`,
       title: `${p.name} (${p.sanskrit})`,
@@ -43,7 +42,7 @@ export default function CommandPalette({ isOpen, onClose }) {
       badge: `${p.caloriesPerMin} kcal/m`,
     })),
 
-    // 10 Gym Exercises
+    // 15 Gym Exercises
     ...Object.values(EXERCISE_PATTERNS).map(e => ({
       id: `gym-${e.id}`,
       title: `${e.name} (${e.targetJoint})`,
@@ -51,16 +50,6 @@ export default function CommandPalette({ isOpen, onClose }) {
       icon: '🏋️',
       path: `/gym?exercise=${e.id}`,
       badge: `${e.caloriesPerRep} kcal/rep`,
-    })),
-
-    // Food & Nutrition Database
-    ...Object.entries(FOOD_NUTRIENTS).map(([k, f]) => ({
-      id: `food-${k}`,
-      title: `${f.name} (${f.calories} kcal/100g)`,
-      category: 'Nutrition · Food',
-      icon: f.icon || '🥗',
-      path: '/nutrition',
-      badge: `${f.protein}g protein`,
     })),
   ];
 

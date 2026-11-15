@@ -6,8 +6,8 @@ import './Navbar.css'
 const NAV_ITEMS = [
   { path: '/', label: 'Home', icon: '🏠' },
   { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { path: '/start', label: 'Yoga (28)', icon: '🧘' },
-  { path: '/gym', label: 'Gym (10)', icon: '💪' },
+  { path: '/start', label: 'Yoga (8)', icon: '🧘' },
+  { path: '/gym', label: 'Gym (15)', icon: '💪' },
   { path: '/nutrition', label: 'Nutrition AI', icon: '🥗' },
   { path: '/video-analysis', label: 'Video Analysis', icon: '🎬' },
   { path: '/planner', label: 'Planner', icon: '📅' },

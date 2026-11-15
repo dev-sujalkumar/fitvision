@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom'
 import {
   getYogaHistory,
   getGymWorkoutHistory,
-  getFoodDiary,
   getUserPreference,
   saveUserPreference,
   saveGymWorkout,
   saveYogaSession,
   deleteGymWorkout,
   deleteYogaSession,
+  getFoodDiary,
 } from '../../utils/storage'
 import './Dashboard.css'
 
@@ -31,9 +31,9 @@ const MUSCLE_TARGETS = [
 export default function Dashboard() {
   const [yogaSessions, setYogaSessions] = useState([])
   const [gymWorkouts, setGymWorkouts] = useState([])
-  const [foodEntries, setFoodEntries] = useState([])
+  const [foodDiary, setFoodDiary] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedTab, setSelectedTab] = useState('overview') // 'overview' | 'yoga' | 'gym' | 'nutrition'
+  const [selectedTab, setSelectedTab] = useState('overview') // 'overview' | 'yoga' | 'gym'
   const [activityFilter, setActivityFilter] = useState('all') // 'all' | 'gym' | 'yoga'
   const [goals, setGoals] = useState(DEFAULT_GOALS)
   const [isEditingGoals, setIsEditingGoals] = useState(false)
@@ -47,23 +47,23 @@ export default function Dashboard() {
     setTimeout(() => setToast(null), 3200)
   }
 
-  // Load all fitness, nutrition, and preference data
+  // Load all fitness and preference data
   const loadAllData = async () => {
     try {
       setLoading(true)
       const todayStr = new Date().toISOString().split('T')[0]
 
-      const [yoga, gym, food, savedGoals, savedWater] = await Promise.all([
+      const [yoga, gym, savedGoals, savedWater, food] = await Promise.all([
         getYogaHistory(100),
         getGymWorkoutHistory(null, 100),
-        getFoodDiary(todayStr),
         getUserPreference('dashboard_goals'),
         getUserPreference(`water_${todayStr}`),
+        getFoodDiary(50),
       ])
 
       setYogaSessions(yoga || [])
       setGymWorkouts(gym || [])
-      setFoodEntries(food || [])
+      setFoodDiary(food || [])
       if (savedGoals && typeof savedGoals === 'object') {
         setGoals(savedGoals)
         setTempGoals(savedGoals)
@@ -251,13 +251,6 @@ export default function Dashboard() {
         .filter((y) => (y.timestamp || 0) >= todayStartMs)
         .reduce((s, y) => s + resolveWorkoutCalories(y), 0)
 
-    // Today's nutrition intake
-    const todayFoodCalories = foodEntries.reduce((s, f) => s + (f.calories || 0), 0)
-    const todayProtein = foodEntries.reduce((s, f) => s + (f.protein || 0), 0)
-    const todayCarbs = foodEntries.reduce((s, f) => s + (f.carbs || 0), 0)
-    const todayFat = foodEntries.reduce((s, f) => s + (f.fat || 0), 0)
-    const netCalories = todayFoodCalories - todayBurned
-
     // Streak calculation
     const allTimestamps = [
       ...yogaSessions.map((s) => s.timestamp),
@@ -296,6 +289,11 @@ export default function Dashboard() {
     })
     const avgFormAccuracy = scoreCount > 0 ? Math.round(totalScore / scoreCount) : 96
 
+    const todayStr = new Date().toISOString().split('T')[0]
+    const todayFoodCalories = foodDiary
+      .filter((item) => (item.dateStr || '').startsWith(todayStr))
+      .reduce((acc, item) => acc + (item.totals?.calories || 0), 0)
+
     return {
       totalSessions,
       totalYogaSec,
@@ -304,15 +302,11 @@ export default function Dashboard() {
       totalGymReps,
       totalCaloriesBurned,
       todayBurned,
-      todayFoodCalories,
-      todayProtein,
-      todayCarbs,
-      todayFat,
-      netCalories,
       streak,
       avgFormAccuracy,
+      todayFoodCalories,
     }
-  }, [yogaSessions, gymWorkouts, foodEntries])
+  }, [yogaSessions, gymWorkouts, foodDiary])
 
   // 7-day activity timeline computation
   const weeklyData = useMemo(() => {
@@ -568,6 +562,18 @@ export default function Dashboard() {
           </div>
           <div className="stat-card-glow" />
         </div>
+
+        <Link to="/nutrition" className="dash-stat-card" style={{ '--card-color': '#06b6d4', textDecoration: 'none' }}>
+          <div className="stat-card-icon" style={{ background: 'rgba(6, 182, 212, 0.15)', borderColor: '#06b6d440' }}>
+            🥗
+          </div>
+          <div className="stat-card-body">
+            <p className="stat-card-label">Today's Food Intake</p>
+            <p className="stat-card-value">{Math.round(stats.todayFoodCalories)} kcal</p>
+            <span className="stat-card-sub">{foodDiary.length} meals saved • Open AI Studio ›</span>
+          </div>
+          <div className="stat-card-glow" />
+        </Link>
       </div>
 
       {/* Tabs */}
@@ -587,12 +593,13 @@ export default function Dashboard() {
         >
           🧘 Yoga Sessions ({yogaSessions.length})
         </button>
-        <button
-          className={`dash-tab ${selectedTab === 'nutrition' ? 'active' : ''}`}
-          onClick={() => setSelectedTab('nutrition')}
+        <Link
+          to="/nutrition"
+          className="dash-tab"
+          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          🥗 Nutrition & Meals ({foodEntries.length})
-        </button>
+          🥗 Nutrition AI Studio ›
+        </Link>
       </div>
 
       {/* Tab 1: Overview */}
@@ -1066,102 +1073,6 @@ export default function Dashboard() {
                     <button className="btn-trash-inline" onClick={() => handleDeleteSession(y)}>
                       🗑️ Delete
                     </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab 4: Nutrition & Meals */}
-      {selectedTab === 'nutrition' && (
-        <div className="dash-tab-content">
-          <div className="dash-card-header-row">
-            <div>
-              <h3 className="dash-section-title">🥗 Today's Nutrition & Meals ({foodEntries.length})</h3>
-              <p className="dash-card-sub">AI Vision dish recognition, Open Food Facts logs, and macro intake</p>
-            </div>
-            <Link to="/nutrition">
-              <button className="btn-primary-glow">📸 Scan Meal with AI</button>
-            </Link>
-          </div>
-
-          <div className="dash-stat-grid-vibrant" style={{ margin: '0 0 24px 0' }}>
-            <div className="dash-stat-card" style={{ '--card-color': '#ec4899' }}>
-              <div className="stat-card-icon" style={{ background: '#ec489920', borderColor: '#ec489940' }}>
-                🔥
-              </div>
-              <div className="stat-card-body">
-                <p className="stat-card-label">Calories Today</p>
-                <p className="stat-card-value">{stats.todayFoodCalories} kcal</p>
-              </div>
-            </div>
-            <div className="dash-stat-card" style={{ '--card-color': '#3b82f6' }}>
-              <div className="stat-card-icon" style={{ background: '#3b82f620', borderColor: '#3b82f640' }}>
-                🥩
-              </div>
-              <div className="stat-card-body">
-                <p className="stat-card-label">Protein</p>
-                <p className="stat-card-value">{Math.round(stats.todayProtein)}g</p>
-              </div>
-            </div>
-            <div className="dash-stat-card" style={{ '--card-color': '#f59e0b' }}>
-              <div className="stat-card-icon" style={{ background: '#f59e0b20', borderColor: '#f59e0b40' }}>
-                🍞
-              </div>
-              <div className="stat-card-body">
-                <p className="stat-card-label">Carbs</p>
-                <p className="stat-card-value">{Math.round(stats.todayCarbs)}g</p>
-              </div>
-            </div>
-            <div className="dash-stat-card" style={{ '--card-color': '#10b981' }}>
-              <div className="stat-card-icon" style={{ background: '#10b98120', borderColor: '#10b98140' }}>
-                🥑
-              </div>
-              <div className="stat-card-body">
-                <p className="stat-card-label">Fats</p>
-                <p className="stat-card-value">{Math.round(stats.todayFat)}g</p>
-              </div>
-            </div>
-          </div>
-
-          {foodEntries.length === 0 ? (
-            <div className="dash-empty-vibrant">
-              <div className="empty-sparkle">🥗</div>
-              <h4>No Meals Logged Today</h4>
-              <p>Upload a food photo or search Open Food Facts to automatically log macros.</p>
-              <Link to="/nutrition">
-                <button className="btn-primary-glow" style={{ marginTop: 12 }}>
-                  Log Food Photo
-                </button>
-              </Link>
-            </div>
-          ) : (
-            <div className="sessions-grid">
-              {foodEntries.map((f, i) => (
-                <div key={f.id || i} className="session-card nutrition-theme">
-                  <div className="session-card-header">
-                    <div className="session-pose-badge nutrition">🥗 {f.name}</div>
-                    <span className="session-date">{f.mealType || 'Meal'}</span>
-                  </div>
-                  <div className="session-metrics">
-                    <div className="session-metric">
-                      <span className="sm-label">Calories</span>
-                      <span className="sm-value fire">{f.calories} kcal</span>
-                    </div>
-                    <div className="session-metric">
-                      <span className="sm-label">Protein</span>
-                      <span className="sm-value">{Math.round(f.protein)}g</span>
-                    </div>
-                    <div className="session-metric">
-                      <span className="sm-label">Carbs</span>
-                      <span className="sm-value">{Math.round(f.carbs)}g</span>
-                    </div>
-                    <div className="session-metric">
-                      <span className="sm-label">Fat</span>
-                      <span className="sm-value">{Math.round(f.fat)}g</span>
-                    </div>
                   </div>
                 </div>
               ))}

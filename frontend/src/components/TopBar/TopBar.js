@@ -50,7 +50,7 @@ export default function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenComman
         title="Open Global Search (Ctrl + K)"
       >
         <span className="search-icon-symbol">🔍</span>
-        <span className="search-placeholder">Search 28 poses, 10 workouts, food...</span>
+        <span className="search-placeholder">Search 8 poses, 15 exercises, 256 foods...</span>
         <span className="search-shortcut-badge">⌘K / Ctrl+K</span>
       </button>
 
@@ -60,19 +60,19 @@ export default function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenComman
           to="/start"
           className={`quick-nav-pill ${location.pathname === '/start' ? 'active' : ''}`}
         >
-          <span>🧘</span> Yoga (28)
+          <span>🧘</span> Yoga (8)
         </Link>
         <Link
           to="/gym"
           className={`quick-nav-pill ${location.pathname === '/gym' ? 'active' : ''}`}
         >
-          <span>💪</span> Gym AI (10)
+          <span>💪</span> Gym AI (15)
         </Link>
         <Link
           to="/nutrition"
           className={`quick-nav-pill ${location.pathname === '/nutrition' ? 'active' : ''}`}
         >
-          <span>🥗</span> Food AI
+          <span>🥗</span> Nutrition AI
         </Link>
         <Link
           to="/video-analysis"

@@ -10,10 +10,15 @@
  * 4. JUMPING_JACKS (Cardio, Full Body)
  * 5. LUNGE (Quads, Glutes, Hamstrings)
  * 6. SHOULDER_PRESS (Deltoids, Triceps)
- * 7. LATERAL_RAISE (Lateral Deltoids)
- * 8. PLANK (Core Isometric Hold)
- * 9. CRUNCHES (Abdominals)
- * 10. HIGH_KNEES (Cardio, Hip Flexors)
+ * 7. LATERAL_RAISE (Lateral Deltoids — Easy Standing Demo)
+ * 8. FRONT_RAISE (Front Deltoids — Easy Standing Demo)
+ * 9. TRICEP_EXTENSION (Overhead Triceps — Easy Standing Demo)
+ * 10. UPRIGHT_ROW (Traps & Shoulders — Easy Standing Demo)
+ * 11. PUNCHES (Shadow Boxing — Dynamic Standing Demo)
+ * 12. CALF_RAISE (Standing Calves)
+ * 13. PLANK (Core Isometric Hold)
+ * 14. CRUNCHES (Abdominals)
+ * 15. HIGH_KNEES (Cardio, Hip Flexors)
  */
 
 /**
@@ -215,9 +220,98 @@ export const EXERCISE_PATTERNS = {
       shoulderAngleRaised: 75,
     },
     countAt: 'raised',
-    stateMinDuration: 200,
+    stateMinDuration: 180,
     activeJoint: 'Shoulders',
     targetRom: 'Parallel with Shoulders (~80°)',
+  },
+  FRONT_RAISE: {
+    id: 'FRONT_RAISE',
+    name: 'Front Raise',
+    category: 'upper',
+    difficulty: 'Beginner',
+    caloriesPerRep: 0.24,
+    targetMuscle: 'Front Deltoids & Chest Tie-in',
+    icon: '🙋‍♂️',
+    states: ['down', 'raised'],
+    thresholds: {
+      shoulderAngleDown: 30,
+      shoulderAngleRaised: 75,
+    },
+    countAt: 'raised',
+    stateMinDuration: 180,
+    activeJoint: 'Shoulders',
+    targetRom: 'Parallel with Shoulders (~80°)',
+  },
+  TRICEP_EXTENSION: {
+    id: 'TRICEP_EXTENSION',
+    name: 'Overhead Tricep Extension',
+    category: 'upper',
+    difficulty: 'Beginner',
+    caloriesPerRep: 0.22,
+    targetMuscle: 'Triceps Brachii',
+    icon: '💪',
+    states: ['flexed', 'extended'],
+    thresholds: {
+      elbowAngleFlexed: 85,
+      elbowAngleExtended: 145,
+    },
+    countAt: 'extended',
+    stateMinDuration: 180,
+    activeJoint: 'Elbows',
+    targetRom: 'Full Extension (>145°)',
+  },
+  UPRIGHT_ROW: {
+    id: 'UPRIGHT_ROW',
+    name: 'Upright Row',
+    category: 'upper',
+    difficulty: 'Beginner',
+    caloriesPerRep: 0.26,
+    targetMuscle: 'Upper Trapezius & Lateral Delts',
+    icon: '🧗',
+    states: ['down', 'lifted'],
+    thresholds: {
+      elbowElevationDown: 35,
+      elbowElevationLifted: 70,
+    },
+    countAt: 'lifted',
+    stateMinDuration: 180,
+    activeJoint: 'Elbows & Shoulders',
+    targetRom: 'Elbows High to Shoulders',
+  },
+  PUNCHES: {
+    id: 'PUNCHES',
+    name: 'Shadow Boxing / Punches',
+    category: 'upper',
+    difficulty: 'Beginner',
+    caloriesPerRep: 0.18,
+    targetMuscle: 'Arms, Deltoids & Core Cardio',
+    icon: '🥊',
+    states: ['guard', 'punch'],
+    thresholds: {
+      elbowAngleGuard: 85,
+      elbowAnglePunch: 140,
+    },
+    countAt: 'punch',
+    stateMinDuration: 120,
+    activeJoint: 'Elbow Extension',
+    targetRom: 'Full Punch Extension (>140°)',
+  },
+  CALF_RAISE: {
+    id: 'CALF_RAISE',
+    name: 'Standing Calf Raise',
+    category: 'legs',
+    difficulty: 'Beginner',
+    caloriesPerRep: 0.16,
+    targetMuscle: 'Calves (Gastrocnemius & Soleus)',
+    icon: '🩰',
+    states: ['ground', 'elevated'],
+    thresholds: {
+      elevationThreshold: 15,
+    },
+    countAt: 'elevated',
+    stateMinDuration: 200,
+    activeJoint: 'Ankles',
+    targetRom: 'Full Plantarflexion',
   },
   PLANK: {
     id: 'PLANK',
@@ -356,6 +450,61 @@ export const EXERCISE_GUIDES = {
     ],
     mistakes: ['Using swinging hip momentum', 'Raising arms way above shoulder height', 'Leading with hands rather than elbows'],
   },
+  FRONT_RAISE: {
+    title: 'Front Dumbbell Raise',
+    focus: 'Anterior deltoids and clavicular head of pectorals',
+    summary: 'Stand tall with dumbbells in front of thighs. Raise arms forward with straight elbows until parallel to the floor.',
+    cues: [
+      'Keep torso upright without leaning back',
+      'Pause for a beat at shoulder height',
+      'Lower under control; do not let arms drop',
+    ],
+    mistakes: ['Using swinging hips for momentum', 'Lifting arms above eye level', 'Arching lower back'],
+  },
+  TRICEP_EXTENSION: {
+    title: 'Overhead Tricep Extension',
+    focus: 'Triceps brachii long head and lateral head',
+    summary: 'Stand tall with elbows pointing up near ears. Extend forearms upward until arms are straight overhead.',
+    cues: [
+      'Keep elbows pinned in place as stationary hinges',
+      'Fully extend at the top with deliberate tricep squeeze',
+      'Lower weight smoothly behind head',
+    ],
+    mistakes: ['Flaring elbows wide', 'Dropping elbows below shoulders', 'Moving upper arms during extension'],
+  },
+  UPRIGHT_ROW: {
+    title: 'Standing Upright Row',
+    focus: 'Upper trapezius, lateral deltoids, and biceps',
+    summary: 'Hold weights in front of thighs. Pull weights upward along the torso, leading with elbows until elbows reach shoulder height.',
+    cues: [
+      'Lead with your elbows, keeping them higher than your wrists',
+      'Pull weights close along the body centerline',
+      'Squeeze shoulders and upper back at top',
+    ],
+    mistakes: ['Lifting hands higher than elbows', 'Using body jerk or leg bounce', 'Excessive forward shoulder rolling'],
+  },
+  PUNCHES: {
+    title: 'Standing Shadow Boxing Punches',
+    focus: 'Deltoids, triceps, rotational core, and cardiovascular endurance',
+    summary: 'Stand in an athletic stance with hands guarding chin. Drive alternating straight punches, rotating hips and snapping back.',
+    cues: [
+      'Extend arm straight toward camera on punch',
+      'Snap fist quickly back to guard position',
+      'Stay light on feet with active breathing',
+    ],
+    mistakes: ['Dropping guarding hand down', 'Incomplete half-punches without extension'],
+  },
+  CALF_RAISE: {
+    title: 'Standing Calf Raise',
+    focus: 'Gastrocnemius, soleus, and ankle stability',
+    summary: 'Stand straight with feet hip-width apart. Drive through balls of feet to elevate heels as high as possible.',
+    cues: [
+      'Pause at peak contraction on the balls of your feet',
+      'Keep knees straight but not hyperextended',
+      'Lower slowly to stretch the calves',
+    ],
+    mistakes: ['Bouncing through reps without pause', 'Leaning weight onto outer edges of feet'],
+  },
   PLANK: {
     title: 'Plank Isometric Endurance',
     focus: 'Transverse abdominis, rectus abdominis, glutes & shoulders',
@@ -426,8 +575,17 @@ export const checkGymFraming = (keypoints, exerciseType) => {
   // Check if seated at desk (head/shoulders detected, but hips/knees absent)
   const isSeatedAtDesk = hasHead && hasShoulders && (!hasHips || (!hasKnees && !hasAnkles));
 
-  const LOWER_BODY_EXERCISES = ['SQUAT', 'LUNGE', 'JUMPING_JACKS', 'HIGH_KNEES'];
-  const UPPER_BODY_EXERCISES = ['PUSHUP', 'BICEP_CURL', 'SHOULDER_PRESS', 'LATERAL_RAISE'];
+  const LOWER_BODY_EXERCISES = ['SQUAT', 'LUNGE', 'JUMPING_JACKS', 'HIGH_KNEES', 'CALF_RAISE'];
+  const UPPER_BODY_EXERCISES = [
+    'PUSHUP',
+    'BICEP_CURL',
+    'SHOULDER_PRESS',
+    'LATERAL_RAISE',
+    'FRONT_RAISE',
+    'TRICEP_EXTENSION',
+    'UPRIGHT_ROW',
+    'PUNCHES',
+  ];
 
   if (LOWER_BODY_EXERCISES.includes(exerciseType)) {
     if (isSeatedAtDesk || !hasKnees || !hasHips) {
@@ -554,6 +712,21 @@ export class RepCounter {
         break;
       case 'LATERAL_RAISE':
         result = this._updateLateralRaise(keypoints, feedback);
+        break;
+      case 'FRONT_RAISE':
+        result = this._updateFrontRaise(keypoints, feedback);
+        break;
+      case 'TRICEP_EXTENSION':
+        result = this._updateTricepExtension(keypoints, feedback);
+        break;
+      case 'UPRIGHT_ROW':
+        result = this._updateUprightRow(keypoints, feedback);
+        break;
+      case 'PUNCHES':
+        result = this._updatePunches(keypoints, feedback);
+        break;
+      case 'CALF_RAISE':
+        result = this._updateCalfRaise(keypoints, feedback);
         break;
       case 'PLANK':
         result = this._updatePlank(keypoints, feedback);
@@ -884,7 +1057,7 @@ export class RepCounter {
   }
 
   /**
-   * Lateral Raise tracking
+   * Lateral Raise tracking (Side Deltoids)
    */
   _updateLateralRaise(keypoints, feedback) {
     const lSh = keypoints[KEYPOINTS.LEFT_SHOULDER];
@@ -897,7 +1070,14 @@ export class RepCounter {
     const lAngle = calculateAngle([lHip[0], lHip[1]], [lSh[0], lSh[1]], [lEl[0], lEl[1]]);
     const rAngle = calculateAngle([rHip[0], rHip[1]], [rSh[0], rSh[1]], [rEl[0], rEl[1]]);
 
-    const avgAngle = Math.round((lAngle + rAngle) / 2);
+    const visibleAngles = [];
+    if (this._pointsVisible([lHip, lSh, lEl])) visibleAngles.push(lAngle);
+    if (this._pointsVisible([rHip, rSh, rEl])) visibleAngles.push(rAngle);
+
+    const avgAngle = visibleAngles.length > 0
+      ? Math.round(visibleAngles.reduce((sum, a) => sum + a, 0) / visibleAngles.length)
+      : Math.round((lAngle + rAngle) / 2);
+
     this.currentAngle = avgAngle;
     this.targetAngle = 80;
 
@@ -917,6 +1097,222 @@ export class RepCounter {
         if (this.formIssues.length === 0) this.cleanReps++;
         this.lastRepCadence = Math.round(((Date.now() - this.repStartTime) / 1000) * 10) / 10;
         this._transitionState('down');
+      }
+    }
+
+    return this._getResult();
+  }
+
+  /**
+   * Front Raise tracking (Anterior Deltoids)
+   */
+  _updateFrontRaise(keypoints, feedback) {
+    const lSh = keypoints[KEYPOINTS.LEFT_SHOULDER];
+    const rSh = keypoints[KEYPOINTS.RIGHT_SHOULDER];
+    const lHip = keypoints[KEYPOINTS.LEFT_HIP];
+    const rHip = keypoints[KEYPOINTS.RIGHT_HIP];
+    const lWr = keypoints[KEYPOINTS.LEFT_WRIST];
+    const rWr = keypoints[KEYPOINTS.RIGHT_WRIST];
+
+    const lAngle = calculateAngle([lHip[0], lHip[1]], [lSh[0], lSh[1]], [lWr[0], lWr[1]]);
+    const rAngle = calculateAngle([rHip[0], rHip[1]], [rSh[0], rSh[1]], [rWr[0], rWr[1]]);
+
+    const visibleAngles = [];
+    if (this._pointsVisible([lHip, lSh, lWr])) visibleAngles.push(lAngle);
+    if (this._pointsVisible([rHip, rSh, rWr])) visibleAngles.push(rAngle);
+
+    const avgAngle = visibleAngles.length > 0
+      ? Math.round(visibleAngles.reduce((sum, a) => sum + a, 0) / visibleAngles.length)
+      : Math.round((lAngle + rAngle) / 2);
+
+    this.currentAngle = avgAngle;
+    this.targetAngle = 80;
+
+    const rawRom = ((avgAngle - 25) / (80 - 25)) * 100;
+    this.rom = Math.max(0, Math.min(100, Math.round(rawRom)));
+
+    const stateElapsed = Date.now() - this.stateStartTime;
+
+    if (this.state === 'down') {
+      if (avgAngle > 55 && stateElapsed > this.pattern.stateMinDuration) {
+        this.repStartTime = Date.now();
+        this._transitionState('raised');
+      }
+    } else if (this.state === 'raised') {
+      if (avgAngle < 35 && stateElapsed > this.pattern.stateMinDuration) {
+        this.repCount++;
+        if (this.formIssues.length === 0) this.cleanReps++;
+        this.lastRepCadence = Math.round(((Date.now() - this.repStartTime) / 1000) * 10) / 10;
+        this._transitionState('down');
+      }
+    }
+
+    return this._getResult();
+  }
+
+  /**
+   * Overhead Tricep Extension tracking
+   */
+  _updateTricepExtension(keypoints, feedback) {
+    const lSh = keypoints[KEYPOINTS.LEFT_SHOULDER];
+    const rSh = keypoints[KEYPOINTS.RIGHT_SHOULDER];
+    const lEl = keypoints[KEYPOINTS.LEFT_ELBOW];
+    const rEl = keypoints[KEYPOINTS.RIGHT_ELBOW];
+    const lWr = keypoints[KEYPOINTS.LEFT_WRIST];
+    const rWr = keypoints[KEYPOINTS.RIGHT_WRIST];
+
+    const lAngle = calculateAngle([lSh[0], lSh[1]], [lEl[0], lEl[1]], [lWr[0], lWr[1]]);
+    const rAngle = calculateAngle([rSh[0], rSh[1]], [rEl[0], rEl[1]], [rWr[0], rWr[1]]);
+
+    const visibleAngles = [];
+    if (this._pointsVisible([lSh, lEl, lWr])) visibleAngles.push(lAngle);
+    if (this._pointsVisible([rSh, rEl, rWr])) visibleAngles.push(rAngle);
+
+    const avgElbow = visibleAngles.length > 0
+      ? Math.round(visibleAngles.reduce((sum, a) => sum + a, 0) / visibleAngles.length)
+      : Math.round((lAngle + rAngle) / 2);
+
+    this.currentAngle = avgElbow;
+    this.targetAngle = 150;
+
+    const rawRom = ((avgElbow - 70) / (150 - 70)) * 100;
+    this.rom = Math.max(0, Math.min(100, Math.round(rawRom)));
+
+    const stateElapsed = Date.now() - this.stateStartTime;
+
+    if (this.state === 'flexed') {
+      if (avgElbow > 135 && stateElapsed > this.pattern.stateMinDuration) {
+        this.repStartTime = Date.now();
+        this._transitionState('extended');
+      }
+    } else if (this.state === 'extended') {
+      if (avgElbow < 85 && stateElapsed > this.pattern.stateMinDuration) {
+        this.repCount++;
+        if (this.formIssues.length === 0) this.cleanReps++;
+        this.lastRepCadence = Math.round(((Date.now() - this.repStartTime) / 1000) * 10) / 10;
+        this._transitionState('flexed');
+      }
+    }
+
+    return this._getResult();
+  }
+
+  /**
+   * Upright Row tracking (Shoulders & Traps)
+   */
+  _updateUprightRow(keypoints, feedback) {
+    const lSh = keypoints[KEYPOINTS.LEFT_SHOULDER];
+    const rSh = keypoints[KEYPOINTS.RIGHT_SHOULDER];
+    const lHip = keypoints[KEYPOINTS.LEFT_HIP];
+    const rHip = keypoints[KEYPOINTS.RIGHT_HIP];
+    const lEl = keypoints[KEYPOINTS.LEFT_ELBOW];
+    const rEl = keypoints[KEYPOINTS.RIGHT_ELBOW];
+
+    const lAngle = calculateAngle([lHip[0], lHip[1]], [lSh[0], lSh[1]], [lEl[0], lEl[1]]);
+    const rAngle = calculateAngle([rHip[0], rHip[1]], [rSh[0], rSh[1]], [rEl[0], rEl[1]]);
+
+    const visibleAngles = [];
+    if (this._pointsVisible([lHip, lSh, lEl])) visibleAngles.push(lAngle);
+    if (this._pointsVisible([rHip, rSh, rEl])) visibleAngles.push(rAngle);
+
+    const avgElbow = visibleAngles.length > 0
+      ? Math.round(visibleAngles.reduce((sum, a) => sum + a, 0) / visibleAngles.length)
+      : Math.round((lAngle + rAngle) / 2);
+
+    this.currentAngle = avgElbow;
+    this.targetAngle = 75;
+
+    const rawRom = ((avgElbow - 25) / (75 - 25)) * 100;
+    this.rom = Math.max(0, Math.min(100, Math.round(rawRom)));
+
+    const stateElapsed = Date.now() - this.stateStartTime;
+
+    if (this.state === 'down') {
+      if (avgElbow > 55 && stateElapsed > this.pattern.stateMinDuration) {
+        this.repStartTime = Date.now();
+        this._transitionState('lifted');
+      }
+    } else if (this.state === 'lifted') {
+      if (avgElbow < 35 && stateElapsed > this.pattern.stateMinDuration) {
+        this.repCount++;
+        if (this.formIssues.length === 0) this.cleanReps++;
+        this.lastRepCadence = Math.round(((Date.now() - this.repStartTime) / 1000) * 10) / 10;
+        this._transitionState('down');
+      }
+    }
+
+    return this._getResult();
+  }
+
+  /**
+   * Shadow Boxing / Punches tracking
+   */
+  _updatePunches(keypoints, feedback) {
+    const lSh = keypoints[KEYPOINTS.LEFT_SHOULDER];
+    const rSh = keypoints[KEYPOINTS.RIGHT_SHOULDER];
+    const lEl = keypoints[KEYPOINTS.LEFT_ELBOW];
+    const rEl = keypoints[KEYPOINTS.RIGHT_ELBOW];
+    const lWr = keypoints[KEYPOINTS.LEFT_WRIST];
+    const rWr = keypoints[KEYPOINTS.RIGHT_WRIST];
+
+    const lAngle = calculateAngle([lSh[0], lSh[1]], [lEl[0], lEl[1]], [lWr[0], lWr[1]]);
+    const rAngle = calculateAngle([rSh[0], rSh[1]], [rEl[0], rEl[1]], [rWr[0], rWr[1]]);
+
+    const maxExtension = Math.max(lAngle, rAngle);
+    this.currentAngle = maxExtension;
+    this.targetAngle = 150;
+
+    const rawRom = ((maxExtension - 70) / (150 - 70)) * 100;
+    this.rom = Math.max(0, Math.min(100, Math.round(rawRom)));
+
+    const stateElapsed = Date.now() - this.stateStartTime;
+
+    if (this.state === 'guard') {
+      if (maxExtension > 135 && stateElapsed > this.pattern.stateMinDuration) {
+        this.repStartTime = Date.now();
+        this._transitionState('punch');
+      }
+    } else if (this.state === 'punch') {
+      if (maxExtension < 90 && stateElapsed > this.pattern.stateMinDuration) {
+        this.repCount++;
+        if (this.formIssues.length === 0) this.cleanReps++;
+        this.lastRepCadence = Math.round(((Date.now() - this.repStartTime) / 1000) * 10) / 10;
+        this._transitionState('guard');
+      }
+    }
+
+    return this._getResult();
+  }
+
+  /**
+   * Standing Calf Raise tracking
+   */
+  _updateCalfRaise(keypoints, feedback) {
+    const lKnee = keypoints[KEYPOINTS.LEFT_KNEE];
+    const rKnee = keypoints[KEYPOINTS.RIGHT_KNEE];
+    const lAnk = keypoints[KEYPOINTS.LEFT_ANKLE];
+    const rAnk = keypoints[KEYPOINTS.RIGHT_ANKLE];
+
+    const lDist = lAnk && lKnee ? (lAnk[1] - lKnee[1]) : 0;
+    const rDist = rAnk && rKnee ? (rAnk[1] - rKnee[1]) : 0;
+    const avgDist = Math.round((lDist + rDist) / 2);
+
+    this.currentAngle = avgDist;
+    this.targetAngle = 100;
+
+    const stateElapsed = Date.now() - this.stateStartTime;
+
+    if (this.state === 'ground') {
+      if (stateElapsed > this.pattern.stateMinDuration) {
+        this.repStartTime = Date.now();
+        this._transitionState('elevated');
+      }
+    } else if (this.state === 'elevated') {
+      if (stateElapsed > this.pattern.stateMinDuration) {
+        this.repCount++;
+        if (this.formIssues.length === 0) this.cleanReps++;
+        this.lastRepCadence = Math.round(((Date.now() - this.repStartTime) / 1000) * 10) / 10;
+        this._transitionState('ground');
       }
     }
 
@@ -1084,6 +1480,28 @@ export class RepCounter {
           issues.push('Elbow flaring away from ribs');
           message = '⚠️ Pin elbows close to your torso';
         }
+      }
+    } else if (this.exerciseType === 'LATERAL_RAISE') {
+      if (this.state === 'raised' && this.currentAngle > 95) {
+        issues.push('Arms raised above shoulder plane');
+        message = '⚠️ Pause at shoulder height; avoid shrugging';
+      }
+    } else if (this.exerciseType === 'FRONT_RAISE') {
+      if (this.state === 'raised' && this.currentAngle > 95) {
+        issues.push('Arms swinging past shoulder level');
+        message = '⚠️ Stop at shoulder height; control the ascent';
+      }
+    } else if (this.exerciseType === 'TRICEP_EXTENSION') {
+      const leftShoulder = keypoints[KEYPOINTS.LEFT_SHOULDER];
+      const leftElbow = keypoints[KEYPOINTS.LEFT_ELBOW];
+      if (this._pointsVisible([leftShoulder, leftElbow]) && leftElbow[1] > leftShoulder[1] + 20) {
+        issues.push('Elbows dropped below shoulder level');
+        message = '⚠️ Keep elbows pointed high near ears';
+      }
+    } else if (this.exerciseType === 'UPRIGHT_ROW') {
+      if (this.state === 'lifted' && this.currentAngle < 60) {
+        issues.push('Elbows not lifted high enough');
+        message = '⚠️ Drive elbows high and wide to collarbone height';
       }
     }
 

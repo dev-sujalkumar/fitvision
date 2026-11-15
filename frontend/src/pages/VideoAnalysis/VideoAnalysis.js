@@ -149,7 +149,7 @@ export default function VideoAnalysis() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [videoUrl]);
 
-  // Load MoveNet Detector & 28-Pose Yoga Classifier on Mount
+  // Load MoveNet Detector & 8-Pose Yoga Classifier on Mount
   useEffect(() => {
     let isMounted = true;
     const initModels = async () => {
@@ -175,7 +175,7 @@ export default function VideoAnalysis() {
         if (!isMounted) return;
         detectorRef.current = detector;
 
-        setLoadingStage('Initializing 28-Pose Neural Biomechanics Engine...');
+        setLoadingStage('Initializing 8-Pose Neural Biomechanics Engine...');
         const classifier = await getOrInitYogaModel();
         if (!isMounted) return;
         classifierRef.current = classifier;
@@ -869,7 +869,7 @@ export default function VideoAnalysis() {
         <div>
           <div className="va-eyebrow-pill">
             <span className="eyebrow-pulse-dot" />
-            <span>AI Motion & Video Biomechanics Lab · 28 Yoga Poses & 10 Gym Movements</span>
+            <span>AI Motion & Video Biomechanics Lab · 8 Core Yoga Poses & 15 Gym Movements</span>
           </div>
           <h1 className="va-title">
             🎬 Video Motion <span className="highlight-text">Analysis Studio</span>
@@ -1016,7 +1016,7 @@ export default function VideoAnalysis() {
                     className={`mode-tab ${analysisMode === 'yoga' ? 'active' : ''}`}
                     onClick={() => setAnalysisMode('yoga')}
                   >
-                    🧘 Yoga Mastery (28 Poses)
+                    🧘 Yoga Mastery (8 Core Poses)
                   </button>
                   <button
                     type="button"
@@ -1453,11 +1453,11 @@ export default function VideoAnalysis() {
                 </div>
                 <div className="checklist-item">
                   <span className="check-icon">✓</span>
-                  <span><strong>10 Gym Disciplines</strong> — Squats, push-ups, lunges, bicep curls, crunches & more</span>
+                  <span><strong>15 Gym Disciplines</strong> — Lateral raises, front raises, overhead press, squats, bicep curls & more</span>
                 </div>
                 <div className="checklist-item">
                   <span className="check-icon">✓</span>
-                  <span><strong>28 Yoga Disciplines</strong> — Deep classification & joint angle posture mastery</span>
+                  <span><strong>8 Core Yoga Disciplines</strong> — Deep classification & joint angle posture mastery</span>
                 </div>
                 <div className="checklist-item">
                   <span className="check-icon">✓</span>

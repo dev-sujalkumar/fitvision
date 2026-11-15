@@ -264,7 +264,7 @@ export default function WorkoutPlanner() {
         <div className="studio-eyebrow">Smart AI Scheduling</div>
         <h1>📅 Weekly Workout & Movement Planner</h1>
         <p>
-          Organize your 28 yoga postures and 10 gym movements across the week. Launch practice directly from your calendar.
+          Organize your 8 core yoga postures and 15 gym movements across the week. Launch practice directly from your calendar.
         </p>
       </header>
 
@@ -498,8 +498,8 @@ export default function WorkoutPlanner() {
                   }
                 }}
               >
-                <option value="yoga">🧘 Movement & Yoga (28 Postures)</option>
-                <option value="gym">💪 Gym AI Strength (10 Exercises)</option>
+                <option value="yoga">🧘 Movement & Yoga (8 Core Postures)</option>
+                <option value="gym">💪 Gym AI Strength (15 Exercises)</option>
               </select>
             </div>
 

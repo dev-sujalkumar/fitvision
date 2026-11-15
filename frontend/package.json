@@ -7,7 +7,6 @@
     "@react-three/drei": "^9.99.7",
     "@react-three/fiber": "^8.15.19",
     "@studio-freight/lenis": "^1.0.42",
-    "@tensorflow-models/mobilenet": "^2.1.1",
     "@tensorflow-models/pose-detection": "^0.0.6",
     "@tensorflow-models/posenet": "^2.2.2",
     "@tensorflow/tfjs": "^3.10.0",

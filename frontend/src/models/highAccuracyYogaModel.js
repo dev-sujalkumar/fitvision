@@ -1,6 +1,6 @@
 /**
  * FitVision AI — High-Accuracy Yoga Neural Classifier & Biomechanical Verification Engine
- * Supports 28 Movement Poses + 3 Non-Yoga Rejection Classes (31 total classes).
+ * Supports 8 Core Movement Poses + 3 Non-Yoga Rejection Classes (11 total classes).
  *
  * Integrates:
  * 1. Deep Learning Neural Classifier (TF.js sequential model with 31 classes including negative rejection classes).
@@ -187,29 +187,13 @@ export const checkPoseBodyVisibility = (keypoints, targetPoseId) => {
     'Chair',
     'WarriorI',
     'WarriorII',
-    'WarriorIII',
     'Triangle',
-    'Mountain',
-    'ExtendedSideAngle',
-    'HalfMoon',
-    'Goddess',
-    'Eagle',
   ];
 
   const FLOOR_AND_PRONE_POSES = [
     'DownwardDog',
-    'Plank',
-    'Chaturanga',
     'Cobra',
-    'UpwardDog',
-    'Bridge',
-    'Bow',
-    'Camel',
-    'Cat',
-    'Cow',
-    'ChildsPose',
-    'SidePlank',
-    'Corpse',
+    'Shoulderstand',
   ];
 
   if (STANDING_AND_BALANCE_POSES.includes(targetPoseId)) {
@@ -1066,6 +1050,20 @@ export const verifyBiomechanicalAngles = (keypoints, targetPoseId) => {
         score = 65;
         passed = false;
         feedback = 'Extend legs straight along the mat';
+      }
+      break;
+    }
+
+    case 'Shoulderstand': {
+      const legsExtended = (lKneeAngle && lKneeAngle > 140) || (rKneeAngle && rKneeAngle > 140);
+      if (legsExtended) {
+        score = 96;
+        passed = true;
+        feedback = 'Vertical inverted alignment · Stable shelf support';
+      } else {
+        score = 65;
+        passed = false;
+        feedback = 'Walk hands up back and reach legs vertically';
       }
       break;
     }
