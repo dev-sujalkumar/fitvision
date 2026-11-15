@@ -424,11 +424,6 @@ export default function Dashboard() {
               💪 Start Gym
             </button>
           </Link>
-          <Link to="/nutrition">
-            <button className="btn-dash-action nutrition-glow" title="Log food with photo AI">
-              🥗 Nutrition Studio
-            </button>
-          </Link>
           {stats.totalSessions === 0 && (
             <button className="btn-dash-action demo-glow" onClick={handleLoadStarterPack} title="Load sample workouts">
               ⚡ Load Demo Pack
@@ -437,36 +432,31 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Telemetry Hero Strip: Net Energy & Hydration */}
+      {/* Telemetry Hero Strip: Active Burn & Hydration */}
       <div className="dash-telemetry-strip">
         <div className="telemetry-card energy-balance-card">
           <div className="telemetry-header">
-            <span className="telemetry-title">⚡ Today's Energy Balance</span>
+            <span className="telemetry-title">🔥 Today's Active Burn</span>
             <span className="telemetry-badge">
-              {stats.netCalories >= 0 ? `+${stats.netCalories} kcal Surplus` : `${stats.netCalories} kcal Deficit`}
+              {stats.todayBurned} / {Math.round(goals.calories / 7 || 300)} kcal
             </span>
           </div>
           <div className="energy-meter-row">
             <div className="energy-item">
-              <span className="energy-label">🍽️ Nutrition Intake</span>
-              <span className="energy-val in">{stats.todayFoodCalories} kcal</span>
-            </div>
-            <div className="energy-divider">−</div>
-            <div className="energy-item">
               <span className="energy-label">🔥 Active Burned</span>
               <span className="energy-val out">{stats.todayBurned} kcal</span>
             </div>
-            <div className="energy-divider">=</div>
+            <div className="energy-divider">/</div>
             <div className="energy-item">
-              <span className="energy-label">⚖️ Net Balance</span>
-              <span className="energy-val net">{stats.netCalories} kcal</span>
+              <span className="energy-label">🎯 Daily Target</span>
+              <span className="energy-val in">{Math.round(goals.calories / 7 || 300)} kcal</span>
             </div>
           </div>
           <div className="energy-progress-bar">
             <div
               className="energy-fill"
               style={{
-                width: `${Math.min(100, Math.max(10, (stats.todayBurned / (goals.calories / 7 || 300)) * 100))}%`,
+                width: `${Math.min(100, Math.max(5, (stats.todayBurned / (goals.calories / 7 || 300)) * 100))}%`,
               }}
             />
           </div>
@@ -601,7 +591,7 @@ export default function Dashboard() {
           className={`dash-tab ${selectedTab === 'nutrition' ? 'active' : ''}`}
           onClick={() => setSelectedTab('nutrition')}
         >
-          🥗 Nutrition Snapshot ({foodEntries.length})
+          🥗 Nutrition & Meals ({foodEntries.length})
         </button>
       </div>
 
@@ -1084,20 +1074,20 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Tab 4: Nutrition Snapshot */}
+      {/* Tab 4: Nutrition & Meals */}
       {selectedTab === 'nutrition' && (
         <div className="dash-tab-content">
           <div className="dash-card-header-row">
             <div>
-              <h3 className="dash-section-title">🥗 Today's Nutrition Telemetry</h3>
-              <p className="dash-card-sub">Real-time macro balance logged in Nutrition Studio</p>
+              <h3 className="dash-section-title">🥗 Today's Nutrition & Meals ({foodEntries.length})</h3>
+              <p className="dash-card-sub">AI Vision dish recognition, Open Food Facts logs, and macro intake</p>
             </div>
             <Link to="/nutrition">
-              <button className="btn-primary-glow">+ Open Nutrition Studio</button>
+              <button className="btn-primary-glow">📸 Scan Meal with AI</button>
             </Link>
           </div>
 
-          <div className="dash-stats-grid" style={{ padding: '0 0 24px 0' }}>
+          <div className="dash-stat-grid-vibrant" style={{ margin: '0 0 24px 0' }}>
             <div className="dash-stat-card" style={{ '--card-color': '#ec4899' }}>
               <div className="stat-card-icon" style={{ background: '#ec489920', borderColor: '#ec489940' }}>
                 🔥
@@ -1113,7 +1103,7 @@ export default function Dashboard() {
               </div>
               <div className="stat-card-body">
                 <p className="stat-card-label">Protein</p>
-                <p className="stat-card-value">{stats.todayProtein}g</p>
+                <p className="stat-card-value">{Math.round(stats.todayProtein)}g</p>
               </div>
             </div>
             <div className="dash-stat-card" style={{ '--card-color': '#f59e0b' }}>
@@ -1122,7 +1112,7 @@ export default function Dashboard() {
               </div>
               <div className="stat-card-body">
                 <p className="stat-card-label">Carbs</p>
-                <p className="stat-card-value">{stats.todayCarbs}g</p>
+                <p className="stat-card-value">{Math.round(stats.todayCarbs)}g</p>
               </div>
             </div>
             <div className="dash-stat-card" style={{ '--card-color': '#10b981' }}>
@@ -1131,7 +1121,7 @@ export default function Dashboard() {
               </div>
               <div className="stat-card-body">
                 <p className="stat-card-label">Fats</p>
-                <p className="stat-card-value">{stats.todayFat}g</p>
+                <p className="stat-card-value">{Math.round(stats.todayFat)}g</p>
               </div>
             </div>
           </div>
@@ -1162,15 +1152,15 @@ export default function Dashboard() {
                     </div>
                     <div className="session-metric">
                       <span className="sm-label">Protein</span>
-                      <span className="sm-value">{f.protein}g</span>
+                      <span className="sm-value">{Math.round(f.protein)}g</span>
                     </div>
                     <div className="session-metric">
                       <span className="sm-label">Carbs</span>
-                      <span className="sm-value">{f.carbs}g</span>
+                      <span className="sm-value">{Math.round(f.carbs)}g</span>
                     </div>
                     <div className="session-metric">
                       <span className="sm-label">Fat</span>
-                      <span className="sm-value">{f.fat}g</span>
+                      <span className="sm-value">{Math.round(f.fat)}g</span>
                     </div>
                   </div>
                 </div>

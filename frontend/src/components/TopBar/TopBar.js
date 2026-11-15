@@ -50,7 +50,7 @@ export default function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenComman
         title="Open Global Search (Ctrl + K)"
       >
         <span className="search-icon-symbol">🔍</span>
-        <span className="search-placeholder">Search 28 poses, 10 workouts, meals...</span>
+        <span className="search-placeholder">Search 28 poses, 10 workouts, food...</span>
         <span className="search-shortcut-badge">⌘K / Ctrl+K</span>
       </button>
 

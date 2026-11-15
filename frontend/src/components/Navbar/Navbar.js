@@ -8,9 +8,9 @@ const NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard', icon: '📊' },
   { path: '/start', label: 'Yoga (28)', icon: '🧘' },
   { path: '/gym', label: 'Gym (10)', icon: '💪' },
+  { path: '/nutrition', label: 'Nutrition AI', icon: '🥗' },
   { path: '/video-analysis', label: 'Video Analysis', icon: '🎬' },
   { path: '/planner', label: 'Planner', icon: '📅' },
-  { path: '/nutrition', label: 'Nutrition', icon: '🥗' },
   { path: '/history', label: 'History', icon: '📋' },
 ]
 

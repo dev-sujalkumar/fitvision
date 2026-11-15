@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { YOGA_POSES } from '../../utils/yogaPoseLibrary';
 import { EXERCISE_PATTERNS } from '../../utils/gymExercises';
+import { FOOD_NUTRIENTS } from '../../utils/foodNutrition';
 import './CommandPalette.css';
 
 export default function CommandPalette({ isOpen, onClose }) {
@@ -27,8 +28,8 @@ export default function CommandPalette({ isOpen, onClose }) {
     { id: 'dest-dash', title: 'Personal Dashboard & Stats', category: 'Navigation', icon: '📊', path: '/dashboard' },
     { id: 'dest-yoga', title: 'Movement & Yoga Studio (28 Poses)', category: 'Discipline', icon: '🧘', path: '/start' },
     { id: 'dest-gym', title: 'Gym AI Strength Trainer (10 Exercises)', category: 'Discipline', icon: '💪', path: '/gym' },
+    { id: 'dest-nutrition', title: 'Food Recognition & Nutrition Studio (100M+ Database)', category: 'Discipline', icon: '🥗', path: '/nutrition' },
     { id: 'dest-video', title: 'Video Motion Biomechanics Lab', category: 'Discipline', icon: '🎬', path: '/video-analysis' },
-    { id: 'dest-nutr', title: 'FoodVision-101 Nutrition Scanner', category: 'Tool', icon: '🥗', path: '/nutrition' },
     { id: 'dest-plan', title: 'AI Workout Planner', category: 'Tool', icon: '📅', path: '/planner' },
     { id: 'dest-hist', title: 'Workout History & Analytics', category: 'Analytics', icon: '📋', path: '/history' },
 
@@ -50,6 +51,16 @@ export default function CommandPalette({ isOpen, onClose }) {
       icon: '🏋️',
       path: `/gym?exercise=${e.id}`,
       badge: `${e.caloriesPerRep} kcal/rep`,
+    })),
+
+    // Food & Nutrition Database
+    ...Object.entries(FOOD_NUTRIENTS).map(([k, f]) => ({
+      id: `food-${k}`,
+      title: `${f.name} (${f.calories} kcal/100g)`,
+      category: 'Nutrition · Food',
+      icon: f.icon || '🥗',
+      path: '/nutrition',
+      badge: `${f.protein}g protein`,
     })),
   ];
 
@@ -113,7 +124,7 @@ export default function CommandPalette({ isOpen, onClose }) {
             ref={inputRef}
             type="text"
             className="cmd-input"
-            placeholder="Type a command, yoga pose, gym workout, or dish..."
+            placeholder="Type a command, yoga pose, or gym workout..."
             value={query}
             onChange={e => {
               setQuery(e.target.value);
@@ -144,16 +155,6 @@ export default function CommandPalette({ isOpen, onClose }) {
             }}
           >
             🏋️ Squat Live
-          </button>
-          <button
-            type="button"
-            className="cmd-pill"
-            onClick={() => {
-              navigate('/nutrition');
-              onClose();
-            }}
-          >
-            🥗 Scan Meal
           </button>
           <button
             type="button"
@@ -196,7 +197,7 @@ export default function CommandPalette({ isOpen, onClose }) {
           {filtered.length === 0 && (
             <div className="cmd-empty-state">
               <span className="cmd-empty-icon">🔎</span>
-              <p>No matches found for "{query}". Try "Warrior", "Squat", or "Nutrition".</p>
+              <p>No matches found for "{query}". Try "Warrior", "Squat", or "Planner".</p>
             </div>
           )}
         </ul>

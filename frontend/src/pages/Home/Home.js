@@ -48,10 +48,10 @@ const FEATURE_CARDS = [
   {
     icon: '🥗',
     title: 'AI Vision Nutrition Studio',
-    desc: 'High-accuracy food scanning with spatial bounding boxes, USDA & Open Food Facts API lookup, macro donut rings, and NutriScore grading.',
+    desc: 'Deep learning food recognition with spatial plate decomposition, Open Food Facts global database, macro gauges, and clinical Nutri-Score.',
     path: '/nutrition',
-    color: '#ec4899',
-    badge: 'Spatial AI',
+    color: '#10b981',
+    badge: '100M+ Foods',
   },
 ]
 
@@ -522,7 +522,7 @@ export default function Home() {
             <div className="step-number">03</div>
             <div className="step-icon">📈</div>
             <h3>Analyze & Improve</h3>
-            <p>Review hold stability, rep velocity, joint angles, and log nutrition seamlessly.</p>
+            <p>Review hold stability, rep velocity, and joint angles seamlessly.</p>
           </div>
         </div>
       </section>

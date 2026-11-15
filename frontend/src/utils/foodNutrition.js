@@ -416,6 +416,94 @@ export const FOOD_NUTRIENTS = {
     tags: ['Breakfast Carbs', 'Toast Staple'],
     colorHue: 'brown',
   },
+  papad: {
+    name: 'Crisp Papadum / Papad / Fryums',
+    icon: '🍘',
+    category: 'grain',
+    defaultGrams: 30,
+    calories: 110, protein: 7.2, carbs: 17.5, fat: 0.8, fiber: 4.8, sugars: 0.5,
+    sodiumMg: 450, potassiumMg: 180, calciumMg: 35, ironMg: 1.8, magnesiumMg: 28, zincMg: 0.7, folateMcg: 15,
+    vitaminCMg: 0, vitaminAMcg: 0, vitaminDMcg: 0, vitaminB12Mcg: 0, cholesterolMg: 0,
+    tags: ['Crisp Wafer', 'Lentil Base', 'Crunchy Side'],
+    colorHue: 'yellow',
+  },
+  curd: {
+    name: 'Fresh Curd / Sweet Lassi / Buttermilk',
+    icon: '🥛',
+    category: 'dairy',
+    defaultGrams: 150,
+    calories: 98, protein: 5.2, carbs: 7.1, fat: 4.3, fiber: 0, sugars: 6.8,
+    sodiumMg: 52, potassiumMg: 210, calciumMg: 180, ironMg: 0.2, magnesiumMg: 18, zincMg: 0.8, folateMcg: 11,
+    vitaminCMg: 0.8, vitaminAMcg: 45, vitaminDMcg: 0.1, vitaminB12Mcg: 0.6, cholesterolMg: 14,
+    tags: ['Probiotic', 'Cooling Beverage', 'Calcium Rich'],
+    colorHue: 'white',
+  },
+  mixedCurry: {
+    name: 'Mixed Vegetable Curry / Aloo Sabzi',
+    icon: '🍛',
+    category: 'vegetable',
+    defaultGrams: 150,
+    calories: 95, protein: 3.2, carbs: 12.8, fat: 3.5, fiber: 4.1, sugars: 3.2,
+    sodiumMg: 240, potassiumMg: 310, calciumMg: 42, ironMg: 1.4, magnesiumMg: 26, zincMg: 0.6, folateMcg: 34,
+    vitaminCMg: 18.5, vitaminAMcg: 120, vitaminDMcg: 0, vitaminB12Mcg: 0, cholesterolMg: 0,
+    tags: ['Spiced Vegetables', 'High Fiber', 'Traditional Curry'],
+    colorHue: 'red',
+  },
+  raita: {
+    name: 'Cucumber & Boondi Raita',
+    icon: '🥣',
+    category: 'dairy',
+    defaultGrams: 100,
+    calories: 65, protein: 3.8, carbs: 5.2, fat: 2.8, fiber: 0.8, sugars: 4.2,
+    sodiumMg: 95, potassiumMg: 160, calciumMg: 130, ironMg: 0.3, magnesiumMg: 14, zincMg: 0.5, folateMcg: 9,
+    vitaminCMg: 2.1, vitaminAMcg: 35, vitaminDMcg: 0.1, vitaminB12Mcg: 0.4, cholesterolMg: 8,
+    tags: ['Cooling Raita', 'Probiotic', 'Digestive Aid'],
+    colorHue: 'white',
+  },
+  samosa: {
+    name: 'Crisp Potato & Pea Samosa',
+    icon: '🥟',
+    category: 'meal',
+    defaultGrams: 90,
+    calories: 262, protein: 4.2, carbs: 32.1, fat: 13.5, fiber: 2.4, sugars: 1.8,
+    sodiumMg: 380, potassiumMg: 195, calciumMg: 28, ironMg: 1.7, magnesiumMg: 22, zincMg: 0.6, folateMcg: 18,
+    vitaminCMg: 8.5, vitaminAMcg: 18, vitaminDMcg: 0, vitaminB12Mcg: 0, cholesterolMg: 0,
+    tags: ['Crisp Pastry', 'Spiced Potato Filling', 'Comfort Snack'],
+    colorHue: 'brown',
+  },
+  naan: {
+    name: 'Tandoori Naan Bread (Garlic / Butter)',
+    icon: '🫓',
+    category: 'grain',
+    defaultGrams: 90,
+    calories: 260, protein: 8.2, carbs: 45.4, fat: 4.8, fiber: 2.2, sugars: 2.4,
+    sodiumMg: 360, potassiumMg: 110, calciumMg: 45, ironMg: 2.4, magnesiumMg: 24, zincMg: 0.8, folateMcg: 48,
+    vitaminCMg: 0, vitaminAMcg: 12, vitaminDMcg: 0, vitaminB12Mcg: 0, cholesterolMg: 5,
+    tags: ['Tandoori Bread', 'Fluffy', 'Indian Restaurant Staple'],
+    colorHue: 'yellow',
+  },
+  chole: {
+    name: 'Amritsari Chole / Spiced Chickpeas',
+    icon: '🍲',
+    category: 'protein',
+    defaultGrams: 180,
+    calories: 130, protein: 6.8, carbs: 19.2, fat: 3.1, fiber: 5.5, sugars: 2.1,
+    sodiumMg: 310, potassiumMg: 280, calciumMg: 48, ironMg: 2.6, magnesiumMg: 44, zincMg: 1.2, folateMcg: 82,
+    vitaminCMg: 4.8, vitaminAMcg: 40, vitaminDMcg: 0, vitaminB12Mcg: 0, cholesterolMg: 0,
+    tags: ['Chickpea Protein', 'Punjabi Style', 'High Fiber'],
+    colorHue: 'brown',
+  },
+  rajma: {
+    name: 'North Indian Rajma / Kidney Bean Curry',
+    icon: '🍛',
+    category: 'protein',
+    defaultGrams: 180,
+    calories: 125, protein: 7.1, carbs: 18.4, fat: 2.8, fiber: 5.8, sugars: 1.9,
+    sodiumMg: 290, potassiumMg: 340, calciumMg: 52, ironMg: 2.8, magnesiumMg: 48, zincMg: 1.1, folateMcg: 94,
+    vitaminCMg: 6.2, vitaminAMcg: 55, vitaminDMcg: 0, vitaminB12Mcg: 0, cholesterolMg: 0,
+    tags: ['Kidney Bean Stew', 'Rich Protein', 'Heart Healthy'],
+    colorHue: 'red',
+  },
 }
 
 /**
@@ -562,7 +650,6 @@ export const FOOD_KEYWORD_MAP = {
   pizza: 'pizza',
   burger: 'chicken',
   cheeseburger: 'chicken',
-  curry: 'dal',
   butter_chicken: 'butterChicken',
   masala: 'dal',
   tikka: 'butterChicken',
@@ -588,22 +675,31 @@ export const FOOD_KEYWORD_MAP = {
   kheer: 'kheer',
   pudding: 'kheer',
   dessert: 'kheer',
-  raita: 'kheer',
-  curd: 'kheer',
+  raita: 'raita',
+  curd: 'curd',
+  lassi: 'curd',
+  buttermilk: 'curd',
+  papad: 'papad',
+  papadum: 'papad',
+  pappadum: 'papad',
+  fryums: 'papad',
+  fryum: 'papad',
+  wafer: 'papad',
+  chips: 'papad',
+  chapati: 'roti',
+  phulka: 'roti',
+  paratha: 'roti',
+  curry: 'mixedCurry',
+  sabzi: 'mixedCurry',
+  subzi: 'mixedCurry',
+  aloo: 'mixedCurry',
+  gobi: 'mixedCurry',
   tea: 'chai',
   chai: 'chai',
   coffee: 'chai',
-  cup: 'chai',
-  mug: 'chai',
-  tumbler: 'chai',
-  glass: 'chai',
-  thali: 'dal',
-  platter: 'dal',
-  tray: 'dal',
-  pot: 'dal',
-  pan: 'dal',
-  bowl: 'dal',
-  dish: 'dal',
+  thali: 'roti',
+  platter: 'roti',
+  tray: 'roti',
 }
 
 /**
@@ -623,7 +719,8 @@ export const analyzeImagePixels = (imgElement) => {
     const imageData = ctx.getImageData(0, 0, size, size)
     const data = imageData.data
     let totalR = 0, totalG = 0, totalB = 0
-    let greenCount = 0, redCount = 0, yellowCount = 0, darkCount = 0, whiteCount = 0
+    let greenCount = 0, redCount = 0, yellowCount = 0, wheatCount = 0
+    let metallicCount = 0, darkCount = 0, whiteCount = 0
 
     const totalPixels = size * size
     for (let i = 0; i < data.length; i += 4) {
@@ -636,25 +733,39 @@ export const analyzeImagePixels = (imgElement) => {
       totalB += b
 
       const brightness = (r + g + b) / 3
+      const maxC = Math.max(r, g, b)
+      const minC = Math.min(r, g, b)
+      const saturation = (maxC - minC) / (maxC || 1)
+
+      // Neutral Metallic Reflection (Stainless steel thali, tray, utensils)
+      // High brightness, very low color saturation (silver/gray sheen)
+      if (brightness > 150 && saturation < 0.13) {
+        metallicCount++
+        continue
+      }
 
       // Green dominance (Salads, Spinach, Green Sabzi, Broccoli, Avocado)
       if (g > r * 1.12 && g > b * 1.12) {
         greenCount++
       }
-      // Red/Orange dominance (Curry, Tomato, Salmon)
-      else if (r > g * 1.25 && r > b * 1.35) {
+      // Red/Orange spiced gravy (Curry, Sabzi, Tomato, Butter Chicken)
+      else if (r > 135 && r > g * 1.25 && r > b * 1.35) {
         redCount++
       }
-      // Yellow/Golden dominance (Dal, Roti, Puri, Dosa, Banana, Cabbage Sabzi)
-      else if (r > 135 && g > 110 && b < 100) {
+      // Wheat/Tan baked tones (Whole-Wheat Roti, Chapati, Paratha, Bread)
+      else if (r > 150 && g > 110 && g < r * 0.95 && b > 65 && b < g * 0.85) {
+        wheatCount++
+      }
+      // Yellow/Golden dominance (Dal Tadka, Papadum, Turmeric Curry)
+      else if (r > 140 && g > 110 && b < 100 && (r - b) > 45) {
         yellowCount++
       }
-      // Dark/Brown dominance (Chicken, Nuts, Roti crust, Chai)
+      // Dark/Brown dominance (Roast, Chai, Nuts)
       else if (brightness < 80) {
         darkCount++
       }
-      // High brightness / White dominance (White rice, Kheer, Curd, Paneer, Idli)
-      else if (brightness > 190) {
+      // High brightness white food (Rice, Curd/Lassi, Idli) - only when not neutral metallic
+      else if (brightness > 190 && saturation >= 0.10) {
         whiteCount++
       }
     }
@@ -666,24 +777,38 @@ export const analyzeImagePixels = (imgElement) => {
     let detectedCategory = 'meal'
     let candidateIds = []
 
-    if (greenCount / totalPixels > 0.18) {
+    const effectiveFoodPixels = Math.max(1, totalPixels - metallicCount)
+    const wheatRatio = wheatCount / effectiveFoodPixels
+    const yellowRatio = yellowCount / effectiveFoodPixels
+    const redRatio = redCount / effectiveFoodPixels
+    const greenRatio = greenCount / effectiveFoodPixels
+    const whiteRatio = whiteCount / effectiveFoodPixels
+
+    // Multi-compartment or Indian Thali Signature on metal plate
+    if (metallicCount / totalPixels > 0.15 && (wheatRatio > 0.10 || yellowRatio > 0.08 || redRatio > 0.08)) {
+      detectedCategory = 'meal'
+      candidateIds = ['roti', 'dal', 'mixedCurry', 'papad', 'curd', 'greenSabzi']
+    } else if (wheatRatio > 0.18) {
+      detectedCategory = 'grain'
+      candidateIds = ['roti', 'dal', 'mixedCurry', 'bread', 'naan', 'puri']
+    } else if (yellowRatio > 0.18) {
+      detectedCategory = 'meal'
+      candidateIds = ['dal', 'papad', 'mixedCurry', 'roti', 'dosa', 'biryani']
+    } else if (redRatio > 0.16) {
+      detectedCategory = 'meal'
+      candidateIds = ['mixedCurry', 'butterChicken', 'rajma', 'chole', 'dal', 'tomato']
+    } else if (greenRatio > 0.16) {
       detectedCategory = 'vegetable'
       candidateIds = ['greenSabzi', 'salad', 'spinach', 'broccoli', 'avocado']
-    } else if (redCount / totalPixels > 0.2) {
-      detectedCategory = 'meal'
-      candidateIds = ['butterChicken', 'tomato', 'dal', 'salmon', 'sweetPotato']
-    } else if (yellowCount / totalPixels > 0.16) {
+    } else if (whiteRatio > 0.25) {
       detectedCategory = 'grain'
-      candidateIds = ['dal', 'puri', 'cabbageSabzi', 'roti', 'banana', 'biryani', 'dosa']
-    } else if (whiteCount / totalPixels > 0.22) {
-      detectedCategory = 'grain'
-      candidateIds = ['rice', 'kheer', 'idli', 'egg', 'paneer', 'yogurt']
+      candidateIds = ['rice', 'curd', 'idli', 'egg', 'paneer']
     } else if (darkCount / totalPixels > 0.25) {
       detectedCategory = 'protein'
-      candidateIds = ['roti', 'bread', 'chai', 'chicken', 'salmon', 'almonds']
+      candidateIds = ['roti', 'chicken', 'salmon', 'almonds', 'bread']
     } else {
       detectedCategory = 'meal'
-      candidateIds = ['dal', 'puri', 'greenSabzi', 'cabbageSabzi', 'roti', 'chicken']
+      candidateIds = ['roti', 'dal', 'mixedCurry', 'papad', 'curd', 'salad']
     }
 
     return {

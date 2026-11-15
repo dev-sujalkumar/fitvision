@@ -10,8 +10,8 @@ import Gym from './pages/Gym/Gym'
 import Dashboard from './pages/Dashboard/Dashboard'
 import WorkoutHistory from './pages/WorkoutHistory/WorkoutHistory'
 import WorkoutPlanner from './pages/WorkoutPlanner/WorkoutPlanner'
-import Nutrition from './pages/Nutrition/Nutrition'
 import VideoAnalysis from './pages/VideoAnalysis/VideoAnalysis'
+import Nutrition from './pages/Nutrition/Nutrition'
 
 import './App.css'
 
@@ -60,8 +60,8 @@ export default function App() {
             <Route path='/dashboard' element={<Dashboard />} />
             <Route path='/history' element={<WorkoutHistory />} />
             <Route path='/planner' element={<WorkoutPlanner />} />
-            <Route path='/nutrition' element={<Nutrition />} />
             <Route path='/video-analysis' element={<VideoAnalysis />} />
+            <Route path='/nutrition' element={<Nutrition />} />
             <Route path='/about' element={<Navigate to="/" replace />} />
             <Route path='/tutorials' element={<Navigate to="/" replace />} />
             <Route path='*' element={<Navigate to="/" replace />} />

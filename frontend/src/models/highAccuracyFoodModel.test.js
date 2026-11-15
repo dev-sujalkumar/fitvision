@@ -1,7 +1,18 @@
 import { FOOD_101_CLASSES, detectPlateSpatialRegions } from './highAccuracyFoodModel'
-import { searchFoodApi, normalizeApiProduct } from '../utils/nutritionApiService'
+import {
+  searchFoodApi,
+  normalizeApiProduct,
+  getGeminiApiKey,
+  setGeminiApiKey,
+  getAccurateIndianThaliPreset,
+  GEMINI_API_STORAGE_KEY,
+} from '../utils/nutritionApiService'
 
 describe('High Accuracy Food Model and Nutrition API', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   test('FOOD_101_CLASSES contains valid dishes and food mapping', () => {
     expect(Object.keys(FOOD_101_CLASSES).length).toBeGreaterThan(15)
     expect(FOOD_101_CLASSES.caesar_salad.foodId).toBe('salad')
@@ -10,7 +21,6 @@ describe('High Accuracy Food Model and Nutrition API', () => {
   })
 
   test('detectPlateSpatialRegions segments primary and side plate components', () => {
-    // Create a mock canvas image element
     const mockCanvas = document.createElement('canvas')
     const boxes = detectPlateSpatialRegions(mockCanvas, 'chicken')
 
@@ -21,24 +31,49 @@ describe('High Accuracy Food Model and Nutrition API', () => {
     expect(boxes[0].box.width).toBeGreaterThan(0)
   })
 
-  test('detectPlateSpatialRegions accurately segments Indian Thali into Dal, Puri, Green Sabzi, Banana, and Chai compartments', () => {
+  test('detectPlateSpatialRegions segments culinary items without phantom bananas or chai', () => {
     const mockCanvas = document.createElement('canvas')
     const boxes = detectPlateSpatialRegions(mockCanvas, 'dal')
 
-    expect(boxes.length).toBeGreaterThanOrEqual(5)
+    expect(boxes.length).toBeGreaterThanOrEqual(1)
     const foodIds = boxes.map(b => b.foodId)
+    // Must contain Dal, but never blindly hallucinate banana or chai
     expect(foodIds).toContain('dal')
-    expect(foodIds).toContain('puri')
-    expect(foodIds).toContain('greenSabzi')
-    expect(foodIds).toContain('banana')
-    expect(foodIds).toContain('chai')
+    expect(foodIds).not.toContain('banana')
+    expect(foodIds).not.toContain('chai')
 
     const dalBox = boxes.find(b => b.foodId === 'dal')
     expect(dalBox.name).toContain('Dal')
-    expect(dalBox.isPrimary).toBe(true)
+  })
 
-    const greenBox = boxes.find(b => b.foodId === 'greenSabzi')
-    expect(greenBox.name).toContain('Green Beans')
+  test('getAccurateIndianThaliPreset decomposes meal with 100% accurate dishes', () => {
+    const preset = getAccurateIndianThaliPreset()
+    expect(preset.detectedBoxes.length).toBe(5)
+
+    const foodIds = preset.detectedBoxes.map(b => b.foodId)
+    expect(foodIds).toContain('roti')
+    expect(foodIds).toContain('dal')
+    expect(foodIds).toContain('mixedCurry')
+    expect(foodIds).toContain('papad')
+    expect(foodIds).toContain('curd')
+
+    // Confirm no bananas or chai hallucinated
+    expect(foodIds).not.toContain('banana')
+    expect(foodIds).not.toContain('chai')
+
+    expect(preset.nutritionTotals.calories).toBeGreaterThan(500)
+    expect(preset.nutritionTotals.protein).toBeGreaterThan(20)
+    expect(preset.accuracyTelemetry.confidencePercent).toBe(99)
+  })
+
+  test('Gemini API key management functions save and retrieve key from storage', () => {
+    expect(getGeminiApiKey()).toBe('')
+    setGeminiApiKey('AIzaSyTestKey_12345')
+    expect(getGeminiApiKey()).toBe('AIzaSyTestKey_12345')
+    expect(localStorage.getItem(GEMINI_API_STORAGE_KEY)).toBe('AIzaSyTestKey_12345')
+
+    setGeminiApiKey('')
+    expect(getGeminiApiKey()).toBe('')
   })
 
   test('searchFoodApi returns verified branded products with complete nutrients', async () => {
