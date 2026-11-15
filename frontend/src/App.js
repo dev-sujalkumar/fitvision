@@ -23,10 +23,7 @@ export default function App() {
   return (
     <Router>
       <div className="app-layout">
-        {/* Background orbs */}
-        <div className="bg-orb bg-orb-1" />
-        <div className="bg-orb bg-orb-2" />
-        <div className="bg-orb bg-orb-3" />
+        <button className="mobile-menu-toggle" type="button" aria-label="Open navigation" onClick={() => setSidebarCollapsed(false)}>☰</button>
 
         <Navbar
           collapsed={sidebarCollapsed}

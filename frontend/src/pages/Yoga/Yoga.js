@@ -371,6 +371,7 @@ function Yoga() {
       {/* Page Header */}
       <div className="yoga-page-header">
         <div>
+          <p className="studio-eyebrow">Movement studio</p>
           <h1 className="yoga-page-title">
             🧘 Yoga <span style={{ color: '#8b5cf6' }}>AI Trainer</span>
           </h1>

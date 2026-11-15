@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import './Home.css'
+import AnatomyExperience from '../../components/AnatomyExperience'
 
 const FEATURE_CARDS = [
   {
@@ -58,6 +59,27 @@ const STATS = [
   { value: '3+', label: 'Gym Exercises' },
   { value: 'Real-time', label: 'AI Detection' },
   { value: '100%', label: 'Browser-based' },
+]
+
+const HIGHLIGHTS = [
+  {
+    icon: '⚡',
+    title: 'Instant form feedback',
+    text: 'Catch posture drift in real-time and fix it before bad habits form.',
+    tone: '#8b5cf6',
+  },
+  {
+    icon: '📈',
+    title: 'Progress you can trust',
+    text: 'Track consistency, rep quality, and mobility gains from one beautiful dashboard.',
+    tone: '#3b82f6',
+  },
+  {
+    icon: '🧠',
+    title: 'Smart routine guidance',
+    text: 'Get personalized recommendations based on your movement and fitness goals.',
+    tone: '#10b981',
+  },
 ]
 
 export default function Home() {
@@ -157,6 +179,24 @@ export default function Home() {
           <div className="hero-visual-glow" />
         </div>
       </section>
+
+      <section className="insight-band animate-on-scroll">
+        <div className="insight-grid">
+          {HIGHLIGHTS.map((item) => (
+            <div key={item.title} className="insight-card" style={{ '--tone': item.tone }}>
+              <div className="insight-icon" style={{ background: `${item.tone}22`, borderColor: `${item.tone}55` }}>
+                <span>{item.icon}</span>
+              </div>
+              <div>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <AnatomyExperience />
 
       {/* Features Grid */}
       <section className="features-section">

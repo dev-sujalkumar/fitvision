@@ -87,6 +87,7 @@ const Dashboard = () => {
       {/* Header */}
       <div className="dash-header">
         <div>
+          <p className="studio-eyebrow">Your training overview</p>
           <h1 className="dash-title">📊 Dashboard</h1>
           <p className="dash-sub">Your fitness journey at a glance</p>
         </div>

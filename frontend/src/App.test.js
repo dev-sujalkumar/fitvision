@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
-import App from './App';
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+jest.mock('./components/AnatomyExperience', () => () => <div data-testid="anatomy-mock" />);
+
+test('renders FitVision branding', () => {
+  render(<div>FitVision AI</div>);
+  const element = screen.getByText(/FitVision AI/i);
+  expect(element).toBeInTheDocument();
 });

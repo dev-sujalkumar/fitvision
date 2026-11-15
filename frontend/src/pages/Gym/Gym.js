@@ -276,6 +276,7 @@ const GymPage = () => {
     <div className="gym-container">
       <div className="gym-page-header">
         <div>
+          <p className="studio-eyebrow">Strength studio</p>
           <h1 className="gym-page-title">💪 Gym <span style={{ color: '#ef4444' }}>AI Trainer</span></h1>
           <p className="gym-page-sub">Real-time rep counting & form feedback with MoveNet</p>
         </div>
@@ -372,26 +373,20 @@ const GymPage = () => {
               </select>
             </div>
 
-            <div style={{
-              background: 'rgba(17, 24, 39, 0.65)',
-              border: '1px solid rgba(148, 163, 184, 0.25)',
-              borderRadius: '14px',
-              padding: '16px',
-              marginBottom: '18px',
-              color: '#f8fafc'
-            }}>
-              <p style={{ margin: 0, color: '#a5f3fc', fontWeight: 700, fontSize: '0.9rem' }}>
+            <div className="exercise-guide">
+              <p className="exercise-guide-title">
                 {EXERCISE_GUIDES[selectedExercise].title}
               </p>
-              <p style={{ margin: '8px 0 0' }}>
-                <strong>Focus:</strong> {EXERCISE_GUIDES[selectedExercise].focus}
+              <p className="exercise-guide-focus">
+                <strong>Focus</strong>
+                <span>{EXERCISE_GUIDES[selectedExercise].focus}</span>
               </p>
-              <p style={{ margin: '8px 0 0' }}>
+              <p className="exercise-guide-summary">
                 {EXERCISE_GUIDES[selectedExercise].summary}
               </p>
-              <ul style={{ margin: '12px 0 0 18px', padding: 0 }}>
+              <ul className="exercise-guide-cues">
                 {EXERCISE_GUIDES[selectedExercise].cues.map((cue, index) => (
-                  <li key={index} style={{ marginBottom: '6px' }}>{cue}</li>
+                  <li key={index}>{cue}</li>
                 ))}
               </ul>
             </div>
