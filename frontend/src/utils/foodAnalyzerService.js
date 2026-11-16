@@ -106,32 +106,29 @@ export const scanWithGeminiVision = async (imageBase64, apiKey = getGeminiApiKey
     cleanBase64 = parts[1];
   }
 
-  const prompt = `You are a world-class clinical sports nutritionist and expert computer vision AI.
-Analyze this food/meal image thoroughly. The meal is served on a plate/bowl of approximately ${plateDiameterCm} cm diameter.
+  const foodCategories = Object.keys(FOOD_DATABASE_256).join(', ');
+  const prompt = `You are a food image recognition assistant. Analyze the provided meal image. The visible plate or bowl is approximately ${plateDiameterCm} cm in diameter.
 
-Identify EVERY distinct food item or component on the plate.
+Identify visible food items only. Do not invent components that are not clearly visible. Return fewer items rather than guessing.
 For each dish component:
-1. Provide a clear descriptive name (e.g., "Herb Grilled Chicken Breast", "Jasmine White Rice", "Steamed Broccoli florets").
-2. Estimate the realistic portion weight in grams (g) based on the ${plateDiameterCm}cm reference plate diameter and visual depth.
-3. Compute macronutrients: calories (kcal), protein (g), carbs (g), fat (g), fiber (g), sodium (mg).
-4. Provide normalized bounding box coordinates for where this dish is located on the image:
+1. Provide a short descriptive name.
+2. Set "food_category" to exactly one matching label from this list, or "unknown" if it cannot be identified: ${foodCategories}
+3. Estimate the portion weight in grams using the ${plateDiameterCm} cm plate for scale. This is an estimate, not a measured value.
+4. Provide normalized bounding box coordinates for the visible food region:
    - x: left edge percentage (0 to 100)
    - y: top edge percentage (0 to 100)
    - width: box width percentage (0 to 100)
    - height: box height percentage (0 to 100)
-5. Assign a confidence score between 0.85 and 0.99.
-6. Choose a representative single emoji icon.
+5. Choose a representative single emoji icon.
 
 Also provide:
 - "plate_name": A short appetizing title for this meal.
-- "health_score": A score from 1 to 100 assessing nutrient density and athletic fitness quality.
-- "athletic_verdict": 2 sentences of professional dietary advice regarding macro balance, satiety, and timing (pre/post-workout).
-- "micronutrients": estimated total plate amounts for { fiber_g, sodium_mg, potassium_mg, calcium_mg, iron_mg, vitamin_c_mg }.
+- "athletic_verdict": one concise, non-medical observation based on the identified foods.
+- "micronutrients": estimated total amounts for { fiber_g, sodium_mg, potassium_mg, calcium_mg, iron_mg, vitamin_c_mg }, or null if these cannot be estimated reliably.
 
 Respond ONLY in valid, parseable JSON with this exact structure (no markdown fences, no explanatory preamble):
 {
   "plate_name": "...",
-  "health_score": 88,
   "athletic_verdict": "...",
   "dishes": [
     {
@@ -143,7 +140,6 @@ Respond ONLY in valid, parseable JSON with this exact structure (no markdown fen
       "protein": 48.0,
       "carbs": 0.0,
       "fat": 6.0,
-      "confidence": 0.97,
       "box": { "x": 15, "y": 20, "width": 40, "height": 45 }
     }
   ],
@@ -222,7 +218,7 @@ Respond ONLY in valid, parseable JSON with this exact structure (no markdown fen
 };
 
 /**
- * On-device heuristic & benchmark computer vision fallback
+ * Offline benchmark resolver. Custom-photo inference requires a vision engine.
  */
 export const analyzeOnDeviceFallback = async (imageBase64, plateDiameterCm = 16.0) => {
   // Check if image matches one of the benchmark meals
@@ -234,40 +230,9 @@ export const analyzeOnDeviceFallback = async (imageBase64, plateDiameterCm = 16.
     return loadBenchmarkPlate(foundMeal.id, plateDiameterCm);
   }
 
-  // Synthesize realistic dishes based on default athletic plate
-  const scale = Math.pow(plateDiameterCm / 16.0, 2);
-
-  const dishes = [
-    {
-      food: 'chicken',
-      name: 'Lean Herb Protein',
-      icon: '🍗',
-      weight_g: Math.round(150 * scale * 10) / 10,
-      confidence: 0.94,
-      box: { x: 18, y: 22, width: 42, height: 42 },
-      ...calculateFoodNutrition('chicken', 150 * scale),
-    },
-    {
-      food: 'rice',
-      name: 'Complex Carbs / Rice',
-      icon: '🍚',
-      weight_g: Math.round(140 * scale * 10) / 10,
-      confidence: 0.95,
-      box: { x: 55, y: 20, width: 36, height: 42 },
-      ...calculateFoodNutrition('rice', 140 * scale),
-    },
-    {
-      food: 'sauteed vegetables',
-      name: 'Fresh Greens & Veggies',
-      icon: '🥦',
-      weight_g: Math.round(95 * scale * 10) / 10,
-      confidence: 0.91,
-      box: { x: 34, y: 56, width: 38, height: 34 },
-      ...calculateFoodNutrition('sauteed vegetables', 95 * scale),
-    },
-  ];
-
-  return normalizeAnalysisResponse({ dishes }, 'on_device_fallback', plateDiameterCm);
+  throw new Error(
+    'Offline recognition is available for bundled benchmark plates only. Select the local YOLO or Gemini engine to analyze a custom photo.'
+  );
 };
 
 /**
@@ -308,19 +273,35 @@ export const loadBenchmarkPlate = (benchmarkId, plateDiameterCm = 16.0) => {
  */
 export const normalizeAnalysisResponse = (raw, engine = 'unknown', plateDiameterCm = 16.0) => {
   const dishes = (raw.dishes || []).map((d, index) => {
-    const weightG = Math.max(5, parseFloat(d.weight_g || 100));
-    const foodKey = (d.food || d.food_category || d.name || 'rice').toLowerCase().trim();
+    const rawWeight = Number(d.weight_g);
+    const weightG = Math.min(1000, Math.max(5, Number.isFinite(rawWeight) && rawWeight > 0 ? rawWeight : 100));
+    const foodKey = String(d.food_category || d.food || d.name || 'unknown').toLowerCase().trim();
     const fallbackNutr = calculateFoodNutrition(foodKey, weightG);
-
-    const calories = Math.round(parseFloat(d.calories ?? fallbackNutr.calories) * 10) / 10;
-    const protein = Math.round(parseFloat(d.protein ?? fallbackNutr.protein) * 10) / 10;
-    const carbs = Math.round(parseFloat(d.carbs ?? fallbackNutr.carbs) * 10) / 10;
-    const fat = Math.round(parseFloat(d.fat ?? fallbackNutr.fat) * 10) / 10;
-    const confidence = Math.min(1.0, Math.max(0.7, parseFloat(d.confidence || 0.94)));
+    const databaseEntry = FOOD_DATABASE_256[foodKey];
+    const providedNumber = (value, fallback) => {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    };
+    const calories = databaseEntry
+      ? fallbackNutr.calories
+      : providedNumber(d.calories, fallbackNutr.calories);
+    const protein = databaseEntry
+      ? fallbackNutr.protein
+      : providedNumber(d.protein, fallbackNutr.protein);
+    const carbs = databaseEntry
+      ? fallbackNutr.carbs
+      : providedNumber(d.carbs, fallbackNutr.carbs);
+    const fat = databaseEntry
+      ? fallbackNutr.fat
+      : providedNumber(d.fat, fallbackNutr.fat);
+    const confidenceValue = Number(d.confidence);
+    const confidence = Number.isFinite(confidenceValue)
+      ? Math.min(1, Math.max(0, confidenceValue))
+      : 0;
 
     // Bounding box normalization to 0-100%
-    let box = d.box || { x: 20 + (index * 25) % 60, y: 25, width: 35, height: 35 };
-    if (box.ymin !== undefined && box.xmin !== undefined) {
+    let box = d.box || null;
+    if (box && box.ymin !== undefined && box.xmin !== undefined) {
       // Gemini [ymin, xmin, ymax, xmax] format
       box = {
         x: Math.round(box.xmin * (box.xmin <= 1 ? 100 : 1)),
@@ -329,6 +310,18 @@ export const normalizeAnalysisResponse = (raw, engine = 'unknown', plateDiameter
         height: Math.round((box.ymax - box.ymin) * (box.ymax <= 1 ? 100 : 1)),
       };
     }
+    if (box && ['x', 'y', 'width', 'height'].every((key) => Number.isFinite(Number(box[key])))) {
+      const x = Math.min(100, Math.max(0, Number(box.x)));
+      const y = Math.min(100, Math.max(0, Number(box.y)));
+      box = {
+        x,
+        y,
+        width: Math.min(100 - x, Math.max(0, Number(box.width))),
+        height: Math.min(100 - y, Math.max(0, Number(box.height))),
+      };
+    } else {
+      box = null;
+    }
 
     return {
       id: d.id || `dish_${index + 1}`,
@@ -336,12 +329,13 @@ export const normalizeAnalysisResponse = (raw, engine = 'unknown', plateDiameter
       food: foodKey,
       icon: d.icon || getFoodEmoji(foodKey),
       weight_g: weightG,
-      calories,
-      protein,
-      carbs,
-      fat,
+      calories: Math.round(calories * 10) / 10,
+      protein: Math.round(protein * 10) / 10,
+      carbs: Math.round(carbs * 10) / 10,
+      fat: Math.round(fat * 10) / 10,
       density: d.density || FOOD_DATABASE_256[foodKey]?.density || 0.85,
       confidence,
+      nutrition_source: databaseEntry ? 'food_database' : 'vision_estimate',
       box,
     };
   });
@@ -359,19 +353,26 @@ export const normalizeAnalysisResponse = (raw, engine = 'unknown', plateDiameter
   const plateAreaCm2 = Math.round(Math.PI * Math.pow(plateRadius, 2) * 10) / 10;
 
   // Micronutrients estimates
-  const defaultMicros = {
-    fiber_g: Math.round((totalCarbs * 0.12 + dishes.length * 1.4) * 10) / 10,
-    sodium_mg: Math.round(totalWeightG * 1.8 + 120),
-    potassium_mg: Math.round(totalProtein * 18 + totalWeightG * 1.2),
-    calcium_mg: Math.round(totalProtein * 4.5 + 45),
-    iron_mg: Math.round((totalProtein * 0.08 + 1.2) * 10) / 10,
-    vitamin_c_mg: Math.round(dishes.length * 9.5),
-  };
-
-  const micronutrients = {
-    ...defaultMicros,
-    ...(raw.micronutrients || {}),
-  };
+  const micronutrientKeys = [
+    'fiber_g',
+    'sodium_mg',
+    'potassium_mg',
+    'calcium_mg',
+    'iron_mg',
+    'vitamin_c_mg',
+  ];
+  let micronutrients = raw.micronutrients && typeof raw.micronutrients === 'object'
+    ? micronutrientKeys.reduce((result, key) => {
+      const value = raw.micronutrients[key];
+      if (value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))) {
+        result[key] = Number(value);
+      }
+      return result;
+    }, {})
+    : null;
+  if (micronutrients && Object.keys(micronutrients).length === 0) {
+    micronutrients = null;
+  }
 
   return {
     plate_name: raw.plate_name || 'Nutrition Diagnostic Scan',
@@ -394,7 +395,7 @@ export const normalizeAnalysisResponse = (raw, engine = 'unknown', plateDiameter
     overall_confidence:
       dishes.length > 0
         ? Math.round((dishes.reduce((acc, d) => acc + d.confidence, 0) / dishes.length) * 100) / 100
-        : 0.95,
+        : 0,
   };
 };
 
@@ -509,6 +510,10 @@ export const updateDishInAnalysis = (analysis, dishId, updates) => {
       merged.fat = nutrition.fat;
       merged.density = FOOD_DATABASE_256[merged.food]?.density || merged.density || 0.85;
       merged.icon = getFoodEmoji(merged.food);
+      if (updates.food !== undefined) {
+        merged.confidence = 0;
+        merged.nutrition_source = FOOD_DATABASE_256[merged.food] ? 'food_database' : 'vision_estimate';
+      }
     }
     return merged;
   });
@@ -559,8 +564,9 @@ export const addDishToAnalysis = (analysis, foodKey, weightG = 100) => {
     carbs: nutr.carbs,
     fat: nutr.fat,
     density: dbEntry?.density || 0.85,
-    confidence: 0.95,
-    box: { x: 30, y: 30, width: 35, height: 35 },
+    confidence: 0,
+    nutrition_source: dbEntry ? 'food_database' : 'vision_estimate',
+    box: null,
   };
 
   return normalizeAnalysisResponse(

@@ -32,6 +32,50 @@ describe('VoiceCoach and Audio Synthesizer Unit Tests', () => {
     expect(hindi1).toContain('पीठ');
     const hindi2 = translateToHindi('Knees tracking over toes');
     expect(hindi2).toContain('घुटनों');
+    expect(translateToHindi('Knees caving inward')).toContain('अंदर की ओर');
+  });
+
+  test('VoiceCoach.speak dispatches Hindi narration with a Hindi browser voice', () => {
+    const originalSpeechSynthesis = Object.getOwnPropertyDescriptor(window, 'speechSynthesis');
+    const originalUtterance = Object.getOwnPropertyDescriptor(window, 'SpeechSynthesisUtterance');
+    const hindiVoice = { name: 'Hindi voice', lang: 'hi-IN' };
+    const spokenUtterances = [];
+    class MockUtterance {
+      constructor(text) {
+        this.text = text;
+        spokenUtterances.push(this);
+      }
+    }
+    const speechSynthesis = {
+      getVoices: () => [hindiVoice],
+      speak: jest.fn(),
+      cancel: jest.fn(),
+      speaking: false,
+    };
+
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: speechSynthesis });
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: MockUtterance });
+
+    try {
+      VoiceCoach.configure({ voiceEnabled: true, language: 'hi' });
+      const accepted = VoiceCoach.speak('नमस्ते', { key: 'voice_coach_hindi_dispatch', priority: 'urgent' });
+
+      expect(accepted).toBe(true);
+      expect(spokenUtterances[0].lang).toBe('hi-IN');
+      expect(spokenUtterances[0].voice).toBe(hindiVoice);
+      expect(speechSynthesis.speak).toHaveBeenCalledWith(spokenUtterances[0]);
+    } finally {
+      if (originalSpeechSynthesis) {
+        Object.defineProperty(window, 'speechSynthesis', originalSpeechSynthesis);
+      } else {
+        delete window.speechSynthesis;
+      }
+      if (originalUtterance) {
+        Object.defineProperty(window, 'SpeechSynthesisUtterance', originalUtterance);
+      } else {
+        delete window.SpeechSynthesisUtterance;
+      }
+    }
   });
 
   test('AudioSynthesizer methods run safely without throwing in headless environments', () => {

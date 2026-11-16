@@ -2305,5 +2305,3 @@ export const calculateNutriScore = (calories, protein, carbs, fat) => {
   }
 };
 
-// Alias for backward compatibility
-export const BENCHMARK_MEAL_PLATES = BENCHMARK_MEALS;
