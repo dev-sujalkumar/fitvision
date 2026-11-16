@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard', icon: '📊' },
   { path: '/start', label: 'Yoga (8)', icon: '🧘' },
   { path: '/gym', label: 'Gym (15)', icon: '💪' },
-  { path: '/nutrition', label: 'Nutrition AI', icon: '🥗' },
+  { path: '/food-analyzer', label: 'Food Vision (256)', icon: '🥗' },
   { path: '/video-analysis', label: 'Video Analysis', icon: '🎬' },
   { path: '/planner', label: 'Planner', icon: '📅' },
   { path: '/history', label: 'History', icon: '📋' },

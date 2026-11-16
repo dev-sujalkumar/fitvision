@@ -69,10 +69,10 @@ export default function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenComman
           <span>💪</span> Gym AI (15)
         </Link>
         <Link
-          to="/nutrition"
-          className={`quick-nav-pill ${location.pathname === '/nutrition' ? 'active' : ''}`}
+          to="/food-analyzer"
+          className={`quick-nav-pill ${location.pathname === '/food-analyzer' || location.pathname === '/nutrition' ? 'active' : ''}`}
         >
-          <span>🥗</span> Nutrition AI
+          <span>🥗</span> Food Vision AI
         </Link>
         <Link
           to="/video-analysis"

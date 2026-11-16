@@ -19,7 +19,7 @@ const createSquatKeypoints = (kneeAngle, visibleSides = ['left', 'right']) => {
 };
 
 const advanceStateClock = (counter) => {
-  counter.stateStartTime = Date.now() - 150;
+  counter.stateStartTime = Date.now() - 250;
 };
 
 describe('RepCounter squat tracking', () => {

@@ -563,7 +563,7 @@ export default function Dashboard() {
           <div className="stat-card-glow" />
         </div>
 
-        <Link to="/nutrition" className="dash-stat-card" style={{ '--card-color': '#06b6d4', textDecoration: 'none' }}>
+        <Link to="/food-analyzer" className="dash-stat-card" style={{ '--card-color': '#06b6d4', textDecoration: 'none' }}>
           <div className="stat-card-icon" style={{ background: 'rgba(6, 182, 212, 0.15)', borderColor: '#06b6d440' }}>
             🥗
           </div>
@@ -594,11 +594,11 @@ export default function Dashboard() {
           🧘 Yoga Sessions ({yogaSessions.length})
         </button>
         <Link
-          to="/nutrition"
+          to="/food-analyzer"
           className="dash-tab"
           style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          🥗 Nutrition AI Studio ›
+          🥗 Food Vision Studio ›
         </Link>
       </div>
 

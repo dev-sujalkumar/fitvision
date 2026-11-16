@@ -23,11 +23,11 @@ const FEATURE_CARDS = [
   },
   {
     icon: '🥗',
-    title: 'Food Recognition & Nutrition AI',
-    desc: 'UECFOOD-256 deep learning model with 3D volumetric depth estimation, physical density calibration, and instant macronutrient breakdowns.',
-    path: '/nutrition',
+    title: 'Food Vision & Nutrition Studio',
+    desc: 'Dual YOLOv8m + Google Gemini Multimodal Vision AI with spatial bounding boxes, volumetric depth estimation, and UEC-256 macronutrient breakdowns.',
+    path: '/food-analyzer',
     color: '#10b981',
-    badge: '90%+ Precision',
+    badge: 'Multimodal Vision',
   },
   {
     icon: '🎬',
