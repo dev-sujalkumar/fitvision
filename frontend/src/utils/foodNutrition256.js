@@ -2259,6 +2259,8 @@ export const BENCHMARK_MEALS = [
   },
 ];
 
+export const BENCHMARK_MEAL_PLATES = BENCHMARK_MEALS;
+
 /**
  * Calculate nutrition for a given food and weight in grams
  */

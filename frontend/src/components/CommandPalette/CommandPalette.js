@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { YOGA_POSES } from '../../utils/yogaPoseLibrary';
 import { EXERCISE_PATTERNS } from '../../utils/gymExercises';
+import { BENCHMARK_MEALS } from '../../utils/foodNutrition256';
 import './CommandPalette.css';
 
 export default function CommandPalette({ isOpen, onClose }) {
@@ -27,7 +28,7 @@ export default function CommandPalette({ isOpen, onClose }) {
     { id: 'dest-dash', title: 'Personal Dashboard & Stats', category: 'Navigation', icon: '📊', path: '/dashboard' },
     { id: 'dest-yoga', title: 'Movement & Yoga Studio (8 Poses)', category: 'Discipline', icon: '🧘', path: '/start' },
     { id: 'dest-gym', title: 'Gym AI Strength Trainer (15 Exercises)', category: 'Discipline', icon: '💪', path: '/gym' },
-    { id: 'dest-nutrition', title: 'Food Recognition & Nutrition AI (256 Foods)', category: 'Discipline', icon: '🥗', path: '/nutrition' },
+    { id: 'dest-food-analyzer', title: 'Food Vision & Nutrition Studio (256 Foods)', category: 'Discipline', icon: '🥗', path: '/food-analyzer' },
     { id: 'dest-video', title: 'Video Motion Biomechanics Lab', category: 'Discipline', icon: '🎬', path: '/video-analysis' },
     { id: 'dest-plan', title: 'AI Workout Planner', category: 'Tool', icon: '📅', path: '/planner' },
     { id: 'dest-hist', title: 'Workout History & Analytics', category: 'Analytics', icon: '📋', path: '/history' },
@@ -50,6 +51,16 @@ export default function CommandPalette({ isOpen, onClose }) {
       icon: '🏋️',
       path: `/gym?exercise=${e.id}`,
       badge: `${e.caloriesPerRep} kcal/rep`,
+    })),
+
+    // UEC-256 Benchmark Plates
+    ...BENCHMARK_MEALS.map(b => ({
+      id: `food-benchmark-${b.id}`,
+      title: `${b.name} (${b.tag})`,
+      category: 'Nutrition Benchmark',
+      icon: '🍱',
+      path: '/food-analyzer',
+      badge: `${b.dishes.length} dishes`,
     })),
   ];
 

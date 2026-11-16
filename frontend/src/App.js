@@ -11,7 +11,7 @@ import Dashboard from './pages/Dashboard/Dashboard'
 import WorkoutHistory from './pages/WorkoutHistory/WorkoutHistory'
 import WorkoutPlanner from './pages/WorkoutPlanner/WorkoutPlanner'
 import VideoAnalysis from './pages/VideoAnalysis/VideoAnalysis'
-import Nutrition from './pages/Nutrition/Nutrition'
+import FoodAnalyzer from './pages/FoodAnalyzer/FoodAnalyzer'
 
 import './App.css'
 
@@ -61,7 +61,8 @@ export default function App() {
             <Route path='/history' element={<WorkoutHistory />} />
             <Route path='/planner' element={<WorkoutPlanner />} />
             <Route path='/video-analysis' element={<VideoAnalysis />} />
-            <Route path='/nutrition' element={<Nutrition />} />
+            <Route path='/food-analyzer' element={<FoodAnalyzer />} />
+            <Route path='/nutrition' element={<FoodAnalyzer />} />
             <Route path='/about' element={<Navigate to="/" replace />} />
             <Route path='/tutorials' element={<Navigate to="/" replace />} />
             <Route path='*' element={<Navigate to="/" replace />} />

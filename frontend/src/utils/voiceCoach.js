@@ -842,4 +842,15 @@ export const VoiceCoach = {
   },
 };
 
+export const soundEffects = {
+  ...AudioSynthesizer,
+  playRepSuccess: () => AudioSynthesizer.playSuccessChime(),
+  playFormMilestone: () => AudioSynthesizer.playSuccessChime(),
+  playFanfare: () => AudioSynthesizer.playFanfare(),
+};
+
+export const speakInstruction = (text, options = {}) => {
+  return VoiceCoach.speak(text, options);
+};
+
 export default VoiceCoach;
