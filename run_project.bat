@@ -15,4 +15,4 @@ echo Both services launched in separate windows:
 echo   - Backend API: http://localhost:5050
 echo   - React UI:    http://localhost:3000
 echo.
-timeout /t 5
+ping 127.0.0.1 -n 4 >nul

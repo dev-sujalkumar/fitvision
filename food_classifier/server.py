@@ -7,7 +7,10 @@ import os
 import sys
 from pathlib import Path
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+try:
+    from flask_cors import CORS
+except ImportError:
+    CORS = None
 import torch
 
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -18,7 +21,15 @@ from inference import get_engine
 from nutrition_db import FOOD101_CLASSES, NUTRITION_PROFILES, get_nutrition_for_class
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+if CORS is not None:
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
+else:
+    @app.after_request
+    def add_cors_headers(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET,PUT,POST,DELETE,OPTIONS"
+        return response
 
 # Lazy engine initialization
 _engine = None
@@ -28,6 +39,41 @@ def get_inference_engine():
     if _engine is None:
         _engine = get_engine()
     return _engine
+
+@app.route("/", methods=["GET"])
+def index():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>FitVision AI - PyTorch Food Classifier API</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; }
+            .card { max-width: 650px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+            h1 { color: #38bdf8; margin-top: 0; }
+            a.btn { display: inline-block; background: #0284c7; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0; }
+            a.btn:hover { background: #0369a1; }
+            code { background: #0f172a; padding: 2px 6px; border-radius: 4px; color: #38bdf8; }
+            ul { line-height: 1.8; }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>🥗 FitVision AI - PyTorch Food API</h1>
+            <p>This is the PyTorch EfficientNet-B2 backend server running on port <code>5050</code>.</p>
+            <p>To view and interact with the full <strong>FitVision AI Studio</strong> application, please open the React frontend:</p>
+            <a class="btn" href="http://localhost:3000">Open FitVision AI Studio (Port 3000) &rarr;</a>
+            <h3>Available API Endpoints:</h3>
+            <ul>
+                <li><a href="/api/health" style="color: #38bdf8;">/api/health</a> - Server and model status</li>
+                <li><a href="/api/foods" style="color: #38bdf8;">/api/foods</a> - List of 101 food classes & nutrition data</li>
+                <li><a href="/api/benchmark-plates" style="color: #38bdf8;">/api/benchmark-plates</a> - Predefined benchmark meals</li>
+                <li><code>POST /api/classify</code> - Image classification with Grad-CAM heatmap</li>
+            </ul>
+        </div>
+    </body>
+    </html>
+    """
 
 @app.route("/api/health", methods=["GET"])
 def health_check():

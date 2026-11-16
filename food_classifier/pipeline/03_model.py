@@ -115,7 +115,11 @@ class FoodClassifier(nn.Module):
 
         # Load pretrained EfficientNet-B2
         # weights=DEFAULT gives us the best available pretrained weights
-        backbone = models.efficientnet_b2(weights=EfficientNet_B2_Weights.DEFAULT)
+        try:
+            backbone = models.efficientnet_b2(weights=EfficientNet_B2_Weights.DEFAULT)
+        except Exception as e:
+            print(f"[FoodClassifier] Offline notice: Pretrained weights download skipped ({e}). Falling back to unweighted architecture.")
+            backbone = models.efficientnet_b2(weights=None)
 
         # The backbone has two parts:
         #   backbone.features   : all the convolutional layers (the "feature extractor")
