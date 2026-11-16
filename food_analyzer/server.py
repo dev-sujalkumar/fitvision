@@ -9,6 +9,7 @@ import json
 import base64
 import io
 import math
+import threading
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -32,6 +33,8 @@ DENSITY_DB = {}
 
 # Check for PyTorch & Ultralytics
 YOLO_AVAILABLE = False
+YOLO_MODEL = None
+YOLO_LOCK = threading.RLock()
 try:
     import torch
     import cv2
@@ -417,102 +420,73 @@ def compute_dish_macros(food_key, weight_g):
     }
 
 
-def analyze_image_heuristics(pil_img, plate_diam_cm=16.0):
-    """
-    Intelligent computer vision fallback:
-    Analyzes dominant color channels, brightness, and quadrant distributions
-    to isolate dish segments and estimate volume & grams.
-    """
+def _get_food_model():
+    global YOLO_MODEL
+    with YOLO_LOCK:
+        if not YOLO_AVAILABLE:
+            raise RuntimeError("Food detector weights or Ultralytics are unavailable.")
+        if YOLO_MODEL is None:
+            YOLO_MODEL = YOLO(str(WEIGHTS_PATH))
+        return YOLO_MODEL
+
+
+def analyze_image_with_yolo(pil_img, plate_diam_cm=16.0):
+    """Detect UECFOOD256 classes and estimate editable portions from plate scale."""
     width, height = pil_img.size
-    img_rgb = np.array(pil_img.convert("RGB"))
+    image_rgb = np.asarray(pil_img.convert("RGB"))
+    with YOLO_LOCK:
+        model = _get_food_model()
+        result = model.predict(
+            source=image_rgb,
+            imgsz=640,
+            conf=0.25,
+            iou=0.5,
+            max_det=20,
+            verbose=False,
+        )[0]
 
-    # Compute color stats
-    r = img_rgb[:, :, 0].astype(float)
-    g = img_rgb[:, :, 1].astype(float)
-    b = img_rgb[:, :, 2].astype(float)
-
-    # Detect dominant color presence
-    avg_r = np.mean(r)
-    avg_g = np.mean(g)
-    avg_b = np.mean(b)
-
+    image_area = max(1, width * height)
+    plate_area_cm2 = math.pi * (plate_diam_cm / 2.0) ** 2
     dishes = []
-    
-    # Check green saturation for vegetable/salad dishes
-    green_mask = (g > r * 1.05) & (g > b * 1.05) & (g > 50)
-    green_ratio = np.sum(green_mask) / (width * height)
+    if result.boxes is None:
+        return dishes
 
-    # Check high brightness / white for rice / bread
-    bright_mask = (r > 170) & (g > 170) & (b > 160) & (np.abs(r - g) < 25)
-    bright_ratio = np.sum(bright_mask) / (width * height)
+    for box in result.boxes:
+        class_id = int(box.cls.item())
+        food_key = str(result.names[class_id]).strip().lower()
+        nutrition = FOOD_NUTRITION_DB.get(food_key)
+        if not nutrition:
+            continue
 
-    # Check warm golden/brown for meat / curry / poultry
-    warm_mask = (r > 120) & (g > 60) & (b < 100) & (r > g)
-    warm_ratio = np.sum(warm_mask) / (width * height)
+        x1, y1, x2, y2 = [float(value) for value in box.xyxy[0].tolist()]
+        box_width = max(0.0, min(width, x2) - max(0.0, x1))
+        box_height = max(0.0, min(height, y2) - max(0.0, y1))
+        if box_width <= 0 or box_height <= 0:
+            continue
 
-    # Synthesize realistic segments with high confidence
-    total_area_cm2 = math.pi * ((plate_diam_cm / 2.0) ** 2)
-
-    if warm_ratio > 0.12 or (not green_ratio > 0.15 and not bright_ratio > 0.15):
-        # Protein / Meat dish
-        sub_area = total_area_cm2 * 0.42
-        vol_cm3 = sub_area * 1.8
-        density = 0.95
-        weight_g = round(vol_cm3 * density, 1)
-        macros = compute_dish_macros("chicken", weight_g)
+        # Bounding boxes do not measure depth; this is only an editable starting estimate.
+        covered_plate_area = min(
+            plate_area_cm2 * 0.85,
+            (box_width * box_height / image_area) * plate_area_cm2 / 0.55,
+        )
+        density = DENSITY_DB.get(food_key, 0.85)
+        weight_g = round(max(15.0, min(600.0, covered_plate_area * 2.5 * density)), 1)
+        confidence = float(box.conf.item())
+        macros = compute_dish_macros(food_key, weight_g)
         dishes.append({
-            "food": "chicken",
-            "name": "Grilled Protein / Chicken Dish",
+            "food": food_key,
+            "name": nutrition["name"],
             "weight_g": weight_g,
-            "calories": macros["calories"],
-            "protein": macros["protein"],
-            "carbs": macros["carbs"],
-            "fat": macros["fat"],
-            "confidence": 0.95,
+            **macros,
+            "confidence": confidence,
             "density": density,
-            "box": {"x": 22, "y": 20, "width": 38, "height": 40}
+            "box": {
+                "x": round(max(0.0, min(100.0, x1 / width * 100)), 1),
+                "y": round(max(0.0, min(100.0, y1 / height * 100)), 1),
+                "width": round(max(0.0, min(100.0, box_width / width * 100)), 1),
+                "height": round(max(0.0, min(100.0, box_height / height * 100)), 1),
+            },
         })
-
-    if bright_ratio > 0.10 or len(dishes) == 1:
-        # Carbs / Rice dish
-        sub_area = total_area_cm2 * 0.38
-        vol_cm3 = sub_area * 2.1
-        density = 0.85
-        weight_g = round(vol_cm3 * density, 1)
-        macros = compute_dish_macros("rice", weight_g)
-        dishes.append({
-            "food": "rice",
-            "name": "Steamed Rice",
-            "weight_g": weight_g,
-            "calories": macros["calories"],
-            "protein": macros["protein"],
-            "carbs": macros["carbs"],
-            "fat": macros["fat"],
-            "confidence": 0.96,
-            "density": density,
-            "box": {"x": 54, "y": 25, "width": 36, "height": 42}
-        })
-
-    if green_ratio > 0.08 or len(dishes) < 2:
-        # Greens / Veggies
-        sub_area = total_area_cm2 * 0.28
-        vol_cm3 = sub_area * 1.5
-        density = 0.65
-        weight_g = round(vol_cm3 * density, 1)
-        macros = compute_dish_macros("sauteed vegetables", weight_g)
-        dishes.append({
-            "food": "sauteed vegetables",
-            "name": "Steamed / Sautéed Greens",
-            "weight_g": weight_g,
-            "calories": macros["calories"],
-            "protein": macros["protein"],
-            "carbs": macros["carbs"],
-            "fat": macros["fat"],
-            "confidence": 0.92,
-            "density": density,
-            "box": {"x": 35, "y": 55, "width": 35, "height": 35}
-        })
-
     return dishes
 
 
@@ -521,6 +495,13 @@ def analyze_food():
     try:
         data = request.get_json(silent=True) or {}
         plate_diam = float(data.get("plate_diameter_cm", 16.0))
+        if not math.isfinite(plate_diam) or not 12.0 <= plate_diam <= 30.0:
+            return jsonify({"status": "error", "message": "Plate diameter must be between 12 and 30 cm."}), 400
+        if not YOLO_AVAILABLE:
+            return jsonify({
+                "status": "error",
+                "message": "Food recognition is unavailable. Install the backend requirements and verify the detector weights.",
+            }), 503
 
         image_data = data.get("image")
         if not image_data and "image" in request.files:
@@ -535,8 +516,7 @@ def analyze_food():
         else:
             return jsonify({"status": "error", "message": "No image provided"}), 400
 
-        # Run detection (heuristics or YOLO)
-        dishes = analyze_image_heuristics(pil_img, plate_diam)
+        dishes = analyze_image_with_yolo(pil_img, plate_diam)
 
         tot_cal = sum(d["calories"] for d in dishes)
         tot_pro = sum(d["protein"] for d in dishes)
@@ -546,6 +526,7 @@ def analyze_food():
 
         return jsonify({
             "status": "success",
+            "engine": "yolov8m_uec256",
             "plate_diameter_cm": plate_diam,
             "dishes": dishes,
             "totals": {

@@ -81,6 +81,18 @@ const HINDI_TRANSLATIONS = {
   'step back': 'कृपया थोड़ा पीछे हटें ताकि आपका पूरा शरीर कैमरे में आ सके।',
   'step into view': 'कृपया कैमरे के सामने आएं ताकि ट्रैकिंग शुरू हो सके।',
   'adjust lighting': 'कृपया रोशनी ठीक करें ताकि शरीर साफ दिखाई दे।',
+  'knees caving inward': 'घुटनों को अंदर की ओर न झुकने दें। उन्हें पंजों की सीध में रखें।',
+  'excessive torso forward lean': 'धड़ को बहुत आगे न झुकाएं। पीठ सीधी रखें।',
+  'hips sagging below shoulder plane': 'कूल्हों को नीचे न गिरने दें। कंधों और कूल्हों को एक सीध में रखें।',
+  'elbow flaring away from ribs': 'कोहनियों को बाहर न फैलाएं। उन्हें पसलियों के पास रखें।',
+  'arms raised above shoulder plane': 'हाथों को कंधों से ऊपर न उठाएं।',
+  'arms swinging past shoulder level': 'हाथों को कंधों से ऊपर झुलाने से बचें। गति नियंत्रित रखें।',
+  'elbows dropped below shoulder level': 'कोहनियों को कंधों की ऊंचाई पर रखें।',
+  'elbows not lifted high enough': 'कोहनियों को थोड़ा और ऊपर उठाएं।',
+  'keep hips in line with shoulders': 'कूल्हों को कंधों की सीध में रखें और कमर को नीचे न झुकने दें।',
+  'stand tall with knees straight': 'सीधे खड़े रहें, घुटनों को सीधा रखें और कंधों को ढीला छोड़ें।',
+  'show full body': 'पूरा शरीर कैमरे में दिखाने के लिए थोड़ा पीछे हटें।',
+  'feet must be visible': 'पैरों को कैमरे में दिखाने के लिए थोड़ा पीछे हटें।',
 };
 
 /**
@@ -115,14 +127,13 @@ export const getBestVoice = (language = coachSettings.language) => {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
   const voices = window.speechSynthesis.getVoices();
   if (!voices || voices.length === 0) return null;
+  const normalizedLanguage = String(language).toLowerCase();
 
   // 1. If Hindi requested, search for native Hindi voices
-  if (language === 'hi') {
+  if (normalizedLanguage === 'hi' || normalizedLanguage.startsWith('hi-')) {
     const hindiVoice = voices.find(
       (v) =>
-        v.lang.startsWith('hi') ||
-        v.lang.toLowerCase().includes('hi-in') ||
-        v.lang.toLowerCase().includes('hi_in') ||
+        String(v.lang).toLowerCase().startsWith('hi') ||
         v.name.toLowerCase().includes('hindi') ||
         v.name.includes('हिन्दी') ||
         v.name.toLowerCase().includes('swara') ||
@@ -134,9 +145,10 @@ export const getBestVoice = (language = coachSettings.language) => {
 
     // Fallback: Indian English voices pronounce Hindi/Sanskrit accurately
     const indianVoice = voices.find(
-      (v) => v.lang.toLowerCase().includes('en-in') || v.name.toLowerCase().includes('india')
+      (v) => String(v.lang).toLowerCase().includes('en-in') || v.name.toLowerCase().includes('india')
     );
     if (indianVoice) return indianVoice;
+    return null;
   }
 
   // 2. English voice selection
@@ -152,11 +164,11 @@ export const getBestVoice = (language = coachSettings.language) => {
   ];
 
   for (const name of preferredNames) {
-    const match = voices.find((v) => v.name.includes(name) && v.lang.startsWith('en'));
+    const match = voices.find((v) => v.name.includes(name) && String(v.lang).toLowerCase().startsWith('en'));
     if (match) return match;
   }
 
-  const anyEnglish = voices.find((v) => v.lang.startsWith('en'));
+  const anyEnglish = voices.find((v) => String(v.lang).toLowerCase().startsWith('en'));
   return anyEnglish || voices[0];
 };
 
@@ -295,8 +307,8 @@ export const AudioSynthesizer = {
  * Core Speech Dispatcher with Smart Anti-Repetition & Cooldown Pacing
  */
 export const speakUtterance = (text, options = {}) => {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-  if (!coachSettings.voiceEnabled || !text) return;
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false;
+  if (!coachSettings.voiceEnabled || !text) return false;
 
   const {
     key = text,
@@ -315,25 +327,25 @@ export const speakUtterance = (text, options = {}) => {
 
   // 1. ANTI-REPETITION: Drop identical speech if spoken within the last 15 seconds
   if (normalizedText === lastSpokenText && now - lastSpokenTime < 15000 && priority !== 'urgent') {
-    return;
+    return false;
   }
 
   // 2. ANTI-REPETITION: Specific key cooldown
   const lastSpokenForKey = speechCooldowns.get(key) || 0;
   if (now - lastSpokenForKey < cooldownMs) {
-    return;
+    return false;
   }
 
   // 3. CATEGORY PACING: Do not speak two form corrections within 10 seconds of each other
   if (category === 'correction') {
     if (now - lastSpokenCategoryTime < 10000 && priority !== 'urgent') {
-      return;
+      return false;
     }
   }
 
   // 4. GLOBAL PACING: Enforce at least 3.2s between spoken phrases (except urgent announcements)
   if (priority !== 'urgent' && now - globalLastSpeechTime < 3200) {
-    return;
+    return false;
   }
 
   try {
@@ -342,17 +354,17 @@ export const speakUtterance = (text, options = {}) => {
       window.speechSynthesis.cancel();
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new window.SpeechSynthesisUtterance(text);
     utterance.volume = coachSettings.volume;
     utterance.rate = rate;
     utterance.pitch = pitch;
 
     // Apply voice and target language
-    const voice = coachSettings.preferredVoice || getBestVoice(lang);
+    const voice = getBestVoice(lang);
     if (voice) {
       utterance.voice = voice;
     }
-    utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-US';
+    utterance.lang = voice?.lang || (String(lang).toLowerCase().startsWith('hi') ? 'hi-IN' : 'en-US');
 
     utterance.onstart = () => {
       currentSpeechUtterance = utterance;
@@ -376,8 +388,10 @@ export const speakUtterance = (text, options = {}) => {
     }
 
     window.speechSynthesis.speak(utterance);
+    return true;
   } catch (e) {
     console.warn('Speech synthesis error:', e);
+    return false;
   }
 };
 
@@ -416,6 +430,13 @@ export const VoiceCoach = {
 
   getLastCategory() {
     return lastSpokenCategory;
+  },
+
+  speak(text, options = {}) {
+    return speakUtterance(text, {
+      ...options,
+      lang: options.lang || coachSettings.language,
+    });
   },
 
   toggleLanguage() {
@@ -461,7 +482,7 @@ export const VoiceCoach = {
     this.stopAll();
 
     const isHindi = coachSettings.language === 'hi';
-    const poseKey = `setup_${pose.id || pose.name}`;
+    const poseKey = `setup_${coachSettings.language}_${pose.id || pose.name}`;
 
     // Never repeat identical setup cue in the same session
     if (spokenSetups.has(poseKey)) {
@@ -655,7 +676,7 @@ export const VoiceCoach = {
     if (!exercisePattern) return;
     this.stopAll();
 
-    const exKey = `gym_setup_${exercisePattern.id}`;
+    const exKey = `gym_setup_${coachSettings.language}_${exercisePattern.id}`;
     if (spokenSetups.has(exKey)) return;
     spokenSetups.add(exKey);
 

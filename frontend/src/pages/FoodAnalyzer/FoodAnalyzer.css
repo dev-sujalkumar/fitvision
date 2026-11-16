@@ -4,9 +4,13 @@
    ========================================================================== */
 
 .food-analyzer-page {
+  width: 100%;
+  min-width: 0;
   min-height: 100vh;
   position: relative;
   z-index: 1;
+  overflow-x: hidden;
+  box-sizing: border-box;
   background:
     radial-gradient(ellipse at 15% 10%, rgba(16, 185, 129, 0.08), transparent 38%),
     radial-gradient(ellipse at 85% 25%, rgba(6, 182, 212, 0.07), transparent 32%),
@@ -17,9 +21,79 @@
   animation: pageFadeIn 0.35s ease-out;
 }
 
+.food-analyzer-page *,
+.food-analyzer-page *::before,
+.food-analyzer-page *::after {
+  box-sizing: border-box;
+}
+
 @keyframes pageFadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.fa-error-banner {
+  margin: 16px clamp(16px, 2.6vw, 36px);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.28);
+  border: 1px solid rgba(248, 113, 113, 0.38);
+  border-radius: 12px;
+}
+
+.fa-error-banner button {
+  flex: 0 0 auto;
+  padding: 6px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.fa-no-detections {
+  position: absolute;
+  inset: auto 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  color: #f8fafc;
+  background: rgba(2, 6, 23, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+}
+
+.fa-no-detections span,
+.fa-estimate-note {
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.fa-scan-status {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 16;
+  padding: 7px 12px;
+  color: #d1fae5;
+  background: rgba(2, 6, 23, 0.82);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  transform: translateX(-50%);
+}
+
+.food-analyzer-page button:focus-visible,
+.food-analyzer-page input:focus-visible,
+.food-analyzer-page select:focus-visible {
+  outline: 2px solid #6ee7b7;
+  outline-offset: 2px;
 }
 
 /* --------------------------------------------------------------------------
@@ -217,14 +291,22 @@
    -------------------------------------------------------------------------- */
 .fa-scanner-layout {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 28px;
-  padding: 28px 36px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: clamp(16px, 2vw, 28px);
+  padding: 28px clamp(16px, 2.6vw, 36px);
   max-width: 1720px;
   margin: 0 auto;
 }
 
-@media (max-width: 1150px) {
+.fa-viewport-column,
+.fa-telemetry-column,
+.fa-viewport-card,
+.fa-energy-card,
+.fa-dishes-panel {
+  min-width: 0;
+}
+
+@media (max-width: 1375px) {
   .fa-scanner-layout {
     grid-template-columns: 1fr;
   }
@@ -320,8 +402,8 @@
 .fa-spatial-stage {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 10;
-  min-height: 420px;
+  min-height: 280px;
+  max-height: min(72vh, 720px);
   background: #020617;
   overflow: hidden;
   display: flex;
@@ -332,7 +414,7 @@
 .fa-viewport-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: fill;
   display: block;
 }
 
@@ -344,6 +426,8 @@
   border-radius: 8px;
   pointer-events: auto;
   cursor: pointer;
+  padding: 0;
+  text-align: left;
   transition: all 0.18s ease-out;
   box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
 }
@@ -573,7 +657,7 @@
 
 .fa-physics-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -638,6 +722,10 @@
   display: flex;
   flex-direction: column;
   text-align: left;
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  font: inherit;
 }
 
 .fa-benchmark-card:hover {
@@ -711,6 +799,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow: hidden;
 }
 
 /* Energy & NutriScore Card */
@@ -798,7 +887,7 @@
 /* Macro Triad Donut Matrix */
 .fa-macros-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -1171,7 +1260,7 @@
   font-size: 13.5px;
   padding: 10px 16px;
   border-radius: 10px;
-  min-width: 280px;
+  min-width: min(280px, 100%);
   outline: none;
 }
 
@@ -1580,4 +1669,79 @@
 .fa-engine-option.selected {
   border-color: #10b981;
   background: rgba(16, 185, 129, 0.08);
+}
+
+@media (max-width: 700px) {
+  .fa-header {
+    padding: 18px 16px;
+    position: static;
+  }
+
+  .fa-tab-nav {
+    padding: 10px 12px;
+  }
+
+  .fa-tab-btn {
+    padding: 8px 12px;
+  }
+
+  .fa-scanner-layout,
+  .fa-db-container,
+  .fa-diary-container {
+    padding: 18px 14px;
+  }
+
+  .fa-viewport-toolbar {
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .fa-mode-pill-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .fa-mode-pill {
+    justify-content: center;
+    padding: 8px 6px;
+    flex: 1;
+  }
+
+  .fa-trigger-scan-btn {
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  .fa-spatial-stage {
+    min-height: 220px;
+    max-height: 65vh;
+  }
+
+  .fa-energy-card,
+  .fa-dishes-panel {
+    padding: 16px;
+  }
+
+  .fa-macros-grid {
+    gap: 8px;
+  }
+
+  .fa-db-search-input {
+    width: 100%;
+  }
+
+  .fa-error-banner {
+    margin: 12px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .food-analyzer-page *,
+  .food-analyzer-page *::before,
+  .food-analyzer-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

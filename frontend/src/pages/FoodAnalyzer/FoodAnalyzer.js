@@ -20,7 +20,7 @@ import {
   setGeminiApiKey,
 } from '../../utils/foodAnalyzerService';
 import { saveFoodEntry, getFoodDiary, deleteFoodEntry } from '../../utils/storage';
-import { speakInstruction, soundEffects } from '../../utils/voiceCoach';
+import VoiceCoach, { speakInstruction, soundEffects } from '../../utils/voiceCoach';
 
 export default function FoodAnalyzer() {
   // Navigation & Tabs
@@ -38,6 +38,7 @@ export default function FoodAnalyzer() {
   // Analysis State
   const [analysis, setAnalysis] = useState(null);
   const [plateDiameter, setPlateDiameter] = useState(16.0);
+  const [imageAspectRatio, setImageAspectRatio] = useState(16 / 10);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [selectedDishId, setSelectedDishId] = useState(null);
@@ -82,7 +83,9 @@ export default function FoodAnalyzer() {
     // Check server health
     checkServerHealth().then((health) => {
       setServerHealth(health);
-      if (health.online) {
+      if (health.online && health.yolo_available && health.weights_present && !existingKey) {
+        setActiveEngine('yolov8m_local');
+      } else if (health.online) {
         setActiveEngine('transformer_vit');
       } else if (existingKey) {
         setActiveEngine('gemini_vision');
@@ -138,17 +141,22 @@ export default function FoodAnalyzer() {
 
   // Camera Management
   const startCamera = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setErrorMsg('Camera access is not available in this browser. Upload a meal photo instead.');
+      return;
+    }
+
     setCameraActive(true);
     setViewportMode('camera');
     try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
-        }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      } else {
+        stream.getTracks().forEach((track) => track.stop());
       }
     } catch (err) {
       console.error('Camera stream access error:', err);
@@ -166,8 +174,16 @@ export default function FoodAnalyzer() {
     setCameraActive(false);
   };
 
+  useEffect(() => () => {
+    const stream = videoRef.current?.srcObject;
+    stream?.getTracks().forEach((track) => track.stop());
+  }, []);
+
   const captureCameraFrame = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || videoRef.current.readyState < 2) {
+      setErrorMsg('The camera is still starting. Please wait a moment and try again.');
+      return;
+    }
     try {
       soundEffects.playRepSuccess();
     } catch (e) {}
@@ -180,6 +196,7 @@ export default function FoodAnalyzer() {
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
       setCustomImageSrc(dataUrl);
+      setAnalysis(null);
       stopCamera();
       triggerFoodAnalysis(dataUrl);
     }
@@ -189,16 +206,28 @@ export default function FoodAnalyzer() {
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.currentTarget.value = '';
+    if (!file.type.startsWith('image/')) {
+      setErrorMsg('Choose an image file to analyze.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMsg('Choose an image smaller than 10 MB.');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64 = event.target?.result;
       if (base64) {
         setCustomImageSrc(base64);
+        setAnalysis(null);
+        setSelectedDishId(null);
         setViewportMode('upload');
         triggerFoodAnalysis(base64);
       }
     };
+    reader.onerror = () => setErrorMsg('The selected image could not be read. Try another image.');
     reader.readAsDataURL(file);
   };
 
@@ -256,17 +285,17 @@ export default function FoodAnalyzer() {
 
       // Optional voice coach announcement
       if (result.totals && result.totals.calories) {
+        const voiceText = VoiceCoach.getLanguage() === 'hi'
+          ? `विश्लेषण पूरा हुआ। ${result.dishes.length} खाद्य पदार्थ मिले। कुल ${Math.round(result.totals.calories)} कैलोरी और ${Math.round(result.totals.protein)} ग्राम प्रोटीन।`
+          : `Analysis complete. Detected ${result.dishes.length} components, totaling ${Math.round(result.totals.calories)} calories and ${Math.round(result.totals.protein)} grams of protein.`;
         speakInstruction(
-          `Analysis complete. Detected ${result.dishes.length} components, totaling ${Math.round(result.totals.calories)} calories and ${Math.round(result.totals.protein)} grams of protein.`,
+          voiceText,
           { category: 'telemetry', priority: 'normal' }
         );
       }
     } catch (err) {
       console.error('Scan error:', err);
-      setErrorMsg(err.message || 'Plate analysis failed. Switching to on-device benchmark.');
-      // Auto-fallback
-      const fallback = await analyzeOnDeviceFallback(imageSrc, plateDiameter);
-      setAnalysis(fallback);
+      setErrorMsg(err.message || 'Food analysis failed. Check the selected engine and try again.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -289,7 +318,10 @@ export default function FoodAnalyzer() {
   };
 
   const handleUpdateDishFood = (dishId, foodKey) => {
-    const updated = updateDishInAnalysis(analysis, dishId, { food: foodKey, name: foodKey });
+    const updated = updateDishInAnalysis(analysis, dishId, {
+      food: foodKey,
+      name: FOOD_DATABASE_256[foodKey]?.name || foodKey,
+    });
     setAnalysis(updated);
   };
 
@@ -309,7 +341,9 @@ export default function FoodAnalyzer() {
   // Voice Coach readout
   const handleVoiceVerdict = () => {
     if (!analysis) return;
-    const text = `${analysis.plate_name}. ${analysis.athletic_verdict}. Total energy: ${Math.round(analysis.totals.calories)} calories, ${Math.round(analysis.totals.protein)} grams protein, ${Math.round(analysis.totals.carbs)} grams carbs. NutriScore Grade ${analysis.nutriScore.grade}.`;
+    const text = VoiceCoach.getLanguage() === 'hi'
+      ? `${analysis.plate_name}। कुल ऊर्जा ${Math.round(analysis.totals.calories)} कैलोरी, ${Math.round(analysis.totals.protein)} ग्राम प्रोटीन और ${Math.round(analysis.totals.carbs)} ग्राम कार्बोहाइड्रेट। न्यूट्रीस्कोर ग्रेड ${analysis.nutriScore.grade}।`
+      : `${analysis.plate_name}. ${analysis.athletic_verdict}. Total energy: ${Math.round(analysis.totals.calories)} calories, ${Math.round(analysis.totals.protein)} grams protein, ${Math.round(analysis.totals.carbs)} grams carbs. NutriScore Grade ${analysis.nutriScore.grade}.`;
     speakInstruction(text, { category: 'advice', priority: 'urgent' });
   };
 
@@ -342,7 +376,16 @@ export default function FoodAnalyzer() {
       try {
         soundEffects.playRepSuccess();
       } catch (e) {}
-      speakInstruction(`Logged ${entry.name} to your ${selectedMealType} diary.`, { category: 'telemetry' });
+      const mealTypeHindi = {
+        breakfast: 'नाश्ते',
+        lunch: 'दोपहर के भोजन',
+        dinner: 'रात के भोजन',
+        snack: 'स्नैक',
+      }[selectedMealType] || 'भोजन';
+      const voiceText = VoiceCoach.getLanguage() === 'hi'
+        ? `${entry.name} को आपकी ${mealTypeHindi} डायरी में दर्ज किया गया।`
+        : `Logged ${entry.name} to your ${selectedMealType} diary.`;
+      speakInstruction(voiceText, { category: 'telemetry' });
       setActiveTab('diary');
     } catch (e) {
       console.error('Failed to log meal:', e);
@@ -434,18 +477,19 @@ export default function FoodAnalyzer() {
         <div className="fa-header-left">
           <div className="fa-super-badge">
             <span className="fa-pulse-dot" />
-            FITVISION 2026 AI FOOD LAB · MULTIMODAL SPATIAL VISION
+            FOOD RECOGNITION · NUTRITION ESTIMATES
           </div>
           <h1 className="fa-page-title">
             🥗 Food Vision & Nutrition Studio
           </h1>
           <p className="fa-page-sub">
-            Instant plate segmentation, volumetric depth analysis, and UEC-256 macronutrient telemetry
+            Identify meal components, review serving estimates, and adjust nutrition before logging.
           </p>
         </div>
 
         <div className="fa-header-right">
           <button
+            type="button"
             className="fa-engine-pill"
             onClick={() => setIsSettingsOpen(true)}
             title="Configure Vision Engine & API Keys"
@@ -456,7 +500,10 @@ export default function FoodAnalyzer() {
                   ? 'vit'
                   : activeEngine === 'gemini_vision'
                   ? 'cloud'
-                  : serverHealth.online
+                  : activeEngine === 'yolov8m_local' &&
+                    serverHealth.online &&
+                    serverHealth.yolo_available &&
+                    serverHealth.weights_present
                   ? 'online'
                   : 'offline'
               }`}
@@ -466,13 +513,14 @@ export default function FoodAnalyzer() {
               : activeEngine === 'gemini_vision'
               ? '⚡ Gemini Vision AI'
               : activeEngine === 'yolov8m_local'
-              ? serverHealth.online
+              ? serverHealth.online && serverHealth.yolo_available && serverHealth.weights_present
                 ? '🟢 YOLOv8m Local (5050)'
                 : '⚪ YOLOv8m Local (Offline)'
-              : '📱 On-Device CV Engine'}
+              : '📱 Offline benchmark mode'}
           </button>
 
           <button
+            type="button"
             className="fa-btn-gear"
             onClick={() => setIsSettingsOpen(true)}
             aria-label="Settings"
@@ -487,12 +535,16 @@ export default function FoodAnalyzer() {
           ------------------------------------------------------------------ */}
       <nav className="fa-tab-nav" aria-label="Studio Tabs">
         <button
+          type="button"
+          aria-pressed={activeTab === 'scanner'}
           className={`fa-tab-btn ${activeTab === 'scanner' ? 'active' : ''}`}
           onClick={() => setActiveTab('scanner')}
         >
           <span>🥗</span> Spatial Plate Scanner & Diagnostics
         </button>
         <button
+          type="button"
+          aria-pressed={activeTab === 'database'}
           className={`fa-tab-btn ${activeTab === 'database' ? 'active' : ''}`}
           onClick={() => setActiveTab('database')}
         >
@@ -500,6 +552,8 @@ export default function FoodAnalyzer() {
           <span className="fa-tab-count-badge">256 Items</span>
         </button>
         <button
+          type="button"
+          aria-pressed={activeTab === 'diary'}
           className={`fa-tab-btn ${activeTab === 'diary' ? 'active' : ''}`}
           onClick={() => setActiveTab('diary')}
         >
@@ -512,9 +566,9 @@ export default function FoodAnalyzer() {
 
       {/* Error Banner */}
       {errorMsg && (
-        <div style={{ margin: '16px 36px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px', padding: '12px 20px', color: '#fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="fa-error-banner" role="alert">
           <span>⚠️ {errorMsg}</span>
-          <button onClick={() => setErrorMsg(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>✕</button>
+          <button type="button" onClick={() => setErrorMsg(null)} aria-label="Dismiss error">✕</button>
         </div>
       )}
 
@@ -589,14 +643,18 @@ export default function FoodAnalyzer() {
                 </div>
 
                 <button
+                  type="button"
                   className="fa-trigger-scan-btn"
                   onClick={() => triggerFoodAnalysis()}
-                  disabled={isAnalyzing || cameraActive}
+                  disabled={isAnalyzing || cameraActive || !customImageSrc}
+                  aria-live="polite"
                 >
                   {isAnalyzing ? (
-                    <>⏳ Scanning Plate...</>
+                    <>⏳ Analyzing meal…</>
+                  ) : customImageSrc ? (
+                    <>⚡ Analyze meal</>
                   ) : (
-                    <>⚡ Run AI Spatial Scan</>
+                    <>✓ Benchmark analyzed</>
                   )}
                 </button>
 
@@ -610,7 +668,7 @@ export default function FoodAnalyzer() {
               </div>
 
               {/* Viewport Canvas Stage */}
-              <div className="fa-spatial-stage">
+              <div className="fa-spatial-stage" style={{ aspectRatio: imageAspectRatio }}>
                 {cameraActive ? (
                   <div className="fa-camera-stage">
                     <video ref={videoRef} className="fa-camera-video" playsInline />
@@ -627,19 +685,27 @@ export default function FoodAnalyzer() {
                   <>
                     <img
                       src={currentViewportImage}
-                      alt="Food Plate"
+                      alt="Meal selected for food analysis"
                       className="fa-viewport-image"
+                      onLoad={(event) => {
+                        const { naturalWidth, naturalHeight } = event.currentTarget;
+                        if (naturalWidth && naturalHeight) {
+                          setImageAspectRatio(Math.min(2, Math.max(0.7, naturalWidth / naturalHeight)));
+                        }
+                      }}
                     />
 
                     {/* Interactive Bounding Boxes */}
                     {analysis &&
                       analysis.dishes &&
                       analysis.dishes.map((dish) => {
-                        const box = dish.box || { x: 25, y: 25, width: 40, height: 40 };
+                        const box = dish.box;
+                        if (!box) return null;
                         const isSelected = selectedDishId === dish.id;
 
                         return (
-                          <div
+                          <button
+                            type="button"
                             key={dish.id}
                             className={`fa-bbox-overlay ${isSelected ? 'selected' : ''}`}
                             style={{
@@ -649,6 +715,12 @@ export default function FoodAnalyzer() {
                               height: `${box.height}%`,
                             }}
                             onClick={() => setSelectedDishId(dish.id)}
+                            aria-pressed={isSelected}
+                            aria-label={`${dish.name}, ${
+                              dish.confidence > 0
+                                ? `${Math.round(dish.confidence * 100)} percent detection confidence`
+                                : 'detection confidence unavailable'
+                            }`}
                             title={`${dish.name} (${dish.weight_g}g)`}
                           >
                             <div className="fa-bbox-tag">
@@ -658,15 +730,23 @@ export default function FoodAnalyzer() {
                                 {Math.round(dish.confidence * 100)}%
                               </span>
                             </div>
-                          </div>
+                          </button>
                         );
                       })}
+
+                    {analysis && analysis.dishes.length === 0 && (
+                      <div className="fa-no-detections" role="status">
+                        <strong>No foods detected</strong>
+                        <span>Try a brighter, closer photo with the plate fully visible.</span>
+                      </div>
+                    )}
 
                     {/* Futuristic Scanning Beam */}
                     {isAnalyzing && (
                       <>
                         <div className="fa-scanning-beam" />
                         <div className="fa-scanning-grid" />
+                        <span className="fa-scan-status" role="status">Analyzing image…</span>
                       </>
                     )}
                   </>
@@ -677,10 +757,10 @@ export default function FoodAnalyzer() {
               <div className="fa-physics-card">
                 <div className="fa-physics-header">
                   <span className="fa-physics-title">
-                    📐 Volumetric Calibration (Plate Reference)
-                  </span>
+                        📐 Portion scale (plate reference)
+                      </span>
                   <span style={{ fontSize: '11.5px', color: '#94a3b8' }}>
-                    Density Physics Engine active
+                    Portion weights are estimates — review before logging
                   </span>
                 </div>
 
@@ -713,13 +793,11 @@ export default function FoodAnalyzer() {
                     </span>
                   </div>
                   <div className="fa-physics-metric-box">
-                    <span className="fa-pm-label">Mean Density (ρ)</span>
+                    <span className="fa-pm-label">Detection confidence</span>
                     <span className="fa-pm-val">
-                      {(
-                        (analysis?.totals?.weight_g || 300) /
-                        Math.max(1, (analysis?.totals?.weight_g || 300) * 1.15)
-                      ).toFixed(2)}{' '}
-                      g/cm³
+                      {analysis?.overall_confidence > 0
+                        ? `${Math.round(analysis.overall_confidence * 100)}%`
+                        : 'Not provided'}
                     </span>
                   </div>
                 </div>
@@ -729,16 +807,18 @@ export default function FoodAnalyzer() {
             {/* Benchmark Preset Strips */}
             <div className="fa-benchmark-section">
               <span className="fa-benchmark-title">
-                🏆 UEC-256 Verified Benchmark Plates
+                🏆 Sample benchmark plates
               </span>
               <div className="fa-benchmark-grid">
                 {BENCHMARK_MEALS.map((bm) => (
-                  <div
+                  <button
+                    type="button"
                     key={bm.id}
                     className={`fa-benchmark-card ${
                       selectedBenchmarkId === bm.id && !customImageSrc ? 'active' : ''
                     }`}
                     onClick={() => handleSelectBenchmark(bm)}
+                    aria-pressed={selectedBenchmarkId === bm.id && !customImageSrc}
                   >
                     <div className="fa-bc-img-wrap">
                       <img src={bm.image} alt={bm.name} className="fa-bc-img" />
@@ -748,7 +828,7 @@ export default function FoodAnalyzer() {
                       <span className="fa-bc-title">{bm.name}</span>
                       <span className="fa-bc-sub">{bm.dishes.length} Components</span>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -767,8 +847,8 @@ export default function FoodAnalyzer() {
                     <span className="fa-energy-unit">kcal</span>
                   </div>
                   <div className="fa-energy-goal">
-                    Target: 2,200 kcal ·{' '}
-                    {Math.round(((analysis?.totals?.calories || 0) / 2200) * 100)}% of daily allowance
+                    2,200 kcal daily reference ·{' '}
+                    {Math.round(((analysis?.totals?.calories || 0) / 2200) * 100)}% (not personalized)
                   </div>
                 </div>
 
@@ -778,7 +858,7 @@ export default function FoodAnalyzer() {
                       {analysis.nutriScore.grade}
                     </span>
                     <div className="fa-ns-info">
-                      <span className="fa-ns-label">Nutri-Score</span>
+                      <span className="fa-ns-label">Macro profile</span>
                       <span className="fa-ns-sub">{analysis.nutriScore.label}</span>
                     </div>
                   </div>
@@ -821,13 +901,14 @@ export default function FoodAnalyzer() {
                 <div className="fa-verdict-card">
                   <div className="fa-verdict-header">
                     <span className="fa-verdict-title">
-                      🎙️ Clinical Sports Nutritionist Assessment
+                      🎙️ General nutrition notes
                     </span>
                     <button className="fa-voice-btn" onClick={handleVoiceVerdict}>
                       <span>🔊</span> Audio Coach
                     </button>
                   </div>
                   <p className="fa-verdict-text">{analysis.athletic_verdict}</p>
+                  <span className="fa-estimate-note">General estimate only; individual nutrition needs vary.</span>
                 </div>
               )}
 
@@ -862,13 +943,13 @@ export default function FoodAnalyzer() {
               {analysis?.micronutrients && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', background: 'rgba(2, 6, 23, 0.5)', padding: '10px 14px', borderRadius: '12px' }}>
                   <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    Fiber: <strong style={{ color: '#fff' }}>{analysis.micronutrients.fiber_g}g</strong>
+                    Fiber (est.): <strong style={{ color: '#fff' }}>{analysis.micronutrients.fiber_g ?? '—'}g</strong>
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    Sodium: <strong style={{ color: '#fff' }}>{analysis.micronutrients.sodium_mg}mg</strong>
+                    Sodium (est.): <strong style={{ color: '#fff' }}>{analysis.micronutrients.sodium_mg ?? '—'}mg</strong>
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    Potassium: <strong style={{ color: '#fff' }}>{analysis.micronutrients.potassium_mg}mg</strong>
+                    Potassium (est.): <strong style={{ color: '#fff' }}>{analysis.micronutrients.potassium_mg ?? '—'}mg</strong>
                   </div>
                 </div>
               )}
@@ -936,7 +1017,11 @@ export default function FoodAnalyzer() {
                           <div>
                             <div className="fa-dish-name">{dish.name}</div>
                             <span className="fa-dish-conf-tag">
-                              {Math.round((dish.confidence || 0.95) * 100)}% Confidence · ρ {dish.density} g/cm³
+                              {dish.confidence > 0
+                                ? `${Math.round(dish.confidence * 100)}% detection confidence`
+                                : 'Detection confidence unavailable'}
+                              {' · '}
+                              {dish.nutrition_source === 'food_database' ? 'nutrition database' : 'vision estimate'}
                             </span>
                           </div>
                         </div>
@@ -1317,10 +1402,10 @@ export default function FoodAnalyzer() {
 
               <div
                 className={`fa-engine-option ${activeEngine === 'gemini_vision' ? 'selected' : ''}`}
-                onClick={() => setActiveEngine('gemini_vision')}
               >
                 <input
                   type="radio"
+                  name="food-engine"
                   checked={activeEngine === 'gemini_vision'}
                   onChange={() => setActiveEngine('gemini_vision')}
                 />
@@ -1329,7 +1414,7 @@ export default function FoodAnalyzer() {
                     Google Gemini Multimodal Vision AI
                   </div>
                   <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    Cloud multi-dish segmentation with 99%+ accuracy, visual depth and bounding boxes.
+                    Cloud-based food recognition. Portion sizes and nutrition values are estimates; review before logging.
                   </div>
                 </div>
               </div>
@@ -1340,6 +1425,7 @@ export default function FoodAnalyzer() {
               >
                 <input
                   type="radio"
+                  name="food-engine"
                   checked={activeEngine === 'yolov8m_local'}
                   onChange={() => setActiveEngine('yolov8m_local')}
                 />
@@ -1348,7 +1434,9 @@ export default function FoodAnalyzer() {
                     Local YOLOv8m Volumetric Server (Port 5050)
                   </div>
                   <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    Status: {serverHealth.online ? '🟢 Online & Ready' : '⚪ Offline (Run python food_analyzer/server.py)'}
+                    Status: {serverHealth.online && serverHealth.yolo_available && serverHealth.weights_present
+                      ? '🟢 Detector ready'
+                      : '⚪ Unavailable (start food_analyzer/run_server.bat)'}
                   </div>
                 </div>
               </div>
@@ -1359,15 +1447,16 @@ export default function FoodAnalyzer() {
               >
                 <input
                   type="radio"
+                  name="food-engine"
                   checked={activeEngine === 'on_device'}
                   onChange={() => setActiveEngine('on_device')}
                 />
                 <div>
                   <div style={{ fontWeight: 700, color: '#f1f5f9' }}>
-                    On-Device Benchmark & Heuristic CV Engine
+                    Offline benchmark mode
                   </div>
                   <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    100% offline fallback. Instant 0ms latency with UEC-256 standard plates.
+                    Bundled sample plates and manual edits work offline. Custom-photo recognition requires Gemini or the local detector.
                   </div>
                 </div>
               </div>

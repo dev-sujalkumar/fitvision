@@ -140,16 +140,10 @@ const Nutrition = () => {
       try {
         AudioSynthesizer.playRepChime();
       } catch (e) {}
-      const voiceText = `Plate analyzed. ${mealName}. Total energy ${Math.round(cals)} calories with ${Math.round(pro)} grams of protein.`;
-      try {
-        VoiceCoach.speak(voiceText);
-      } catch (e) {
-        if ('speechSynthesis' in window) {
-          const utter = new SpeechSynthesisUtterance(voiceText);
-          utter.rate = 1.0;
-          window.speechSynthesis.speak(utter);
-        }
-      }
+      const voiceText = VoiceCoach.getLanguage() === 'hi'
+        ? `भोजन का विश्लेषण पूरा हुआ। ${mealName}। कुल ऊर्जा ${Math.round(cals)} कैलोरी और ${Math.round(pro)} ग्राम प्रोटीन।`
+        : `Plate analyzed. ${mealName}. Total energy ${Math.round(cals)} calories with ${Math.round(pro)} grams of protein.`;
+      VoiceCoach.speak(voiceText, { category: 'telemetry', priority: 'high' });
     },
     [voiceEnabled]
   );
