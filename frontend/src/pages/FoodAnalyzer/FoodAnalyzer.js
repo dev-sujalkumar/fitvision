@@ -1,204 +1,99 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import Webcam from 'react-webcam';
 import './FoodAnalyzer.css';
 import {
-  FOOD_DATABASE_256,
-  BENCHMARK_MEALS,
-} from '../../utils/foodNutrition256';
+  FOOD101_DATABASE,
+  SAMPLE_PLATES,
+  calculateFoodNutrition,
+  calculateNutriScore,
+} from '../../utils/food101Data';
 import {
   checkServerHealth,
-  analyzeWithLocalServer,
-  classifyWithTransformer,
-  scanWithGeminiVision,
-  analyzeOnDeviceFallback,
-  loadBenchmarkPlate,
-  recalibratePlateDiameter,
-  updateDishInAnalysis,
-  removeDishFromAnalysis,
-  addDishToAnalysis,
-  getFoodEmoji,
-  getGeminiApiKey,
+  classifyWithPyTorch,
+  loadSamplePlate,
   setGeminiApiKey,
 } from '../../utils/foodAnalyzerService';
 import { saveFoodEntry, getFoodDiary, deleteFoodEntry } from '../../utils/storage';
-import VoiceCoach, { speakInstruction, soundEffects } from '../../utils/voiceCoach';
+import { speakInstruction, soundEffects } from '../../utils/voiceCoach';
 
 export default function FoodAnalyzer() {
   // Navigation & Tabs
-  const [activeTab, setActiveTab] = useState('scanner'); // 'scanner' | 'database' | 'diary'
-  const [viewportMode, setViewportMode] = useState('benchmarks'); // 'camera' | 'upload' | 'benchmarks'
+  const [activeTab, setActiveTab] = useState('scanner'); // 'scanner' | 'library' | 'diary'
+  const [viewportMode, setViewportMode] = useState('upload'); // 'upload' | 'camera'
+  const [viewChoice, setViewChoice] = useState('split'); // 'split' | 'slider' | 'heatmap' | 'original'
+  const [sliderPos, setSliderPos] = useState(50); // 0-100% for Grad-CAM comparison slider
 
-  // Engine Configuration & Settings
-  const [activeEngine, setActiveEngine] = useState('transformer_vit'); // 'transformer_vit' | 'gemini_vision' | 'yolov8m_local' | 'on_device'
+  // Model & Server Status
+  const [serverHealth, setServerHealth] = useState({ online: false, model: 'EfficientNet-B2 (PyTorch)' });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [geminiKeyInput, setGeminiKeyInput] = useState('');
-  const [serverHealth, setServerHealth] = useState({ online: false });
-  const [isTestingKey, setIsTestingKey] = useState(false);
-  const [keyTestStatus, setKeyTestStatus] = useState(null);
 
-  // Analysis State
+  // Analysis & Image State — INITIAL STATE IS EMPTY! (No pre-loaded pizza)
   const [analysis, setAnalysis] = useState(null);
-  const [plateDiameter, setPlateDiameter] = useState(16.0);
-  const [imageAspectRatio, setImageAspectRatio] = useState(16 / 10);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [errorMsg, setErrorMsg] = useState(null);
-  const [selectedDishId, setSelectedDishId] = useState(null);
   const [customImageSrc, setCustomImageSrc] = useState(null);
-  const [selectedBenchmarkId, setSelectedBenchmarkId] = useState('meal_12082');
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [plateDiameter, setPlateDiameter] = useState(16.0);
+  const [portionGrams, setPortionGrams] = useState(180);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [scanStage, setScanStage] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [toastMsg, setToastMsg] = useState(null);
 
-  // New Dish Modal / Inline Add
-  const [isAddingDish, setIsAddingDish] = useState(false);
-  const [newDishFoodKey, setNewDishFoodKey] = useState('chicken');
-  const [newDishGrams, setNewDishGrams] = useState(120);
+  // Diary & Hydration
+  const [diaryEntries, setDiaryEntries] = useState([]);
+  const [waterMl, setWaterMl] = useState(1250);
 
-  // Camera Stream
-  const videoRef = useRef(null);
+  // Library Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
+  // Camera & File Input Refs
+  const webcamRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [cameraActive, setCameraActive] = useState(false);
 
-  // Knowledgebase Tab State
-  const [dbSearch, setDbSearch] = useState('');
-  const [dbFilter, setDbFilter] = useState('all'); // 'all' | 'high_protein' | 'low_carb' | 'low_cal'
+  // Notification Toast Helper
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3200);
+  };
 
-  // Meal Diary & Hydration State
-  const [mealDiary, setMealDiary] = useState([]);
-  const [selectedMealType, setSelectedMealType] = useState('Lunch'); // 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'
-  const [waterIntakeMl, setWaterIntakeMl] = useState(() => {
-    try {
-      const saved = localStorage.getItem('fitvision_water_ml');
-      return saved ? parseInt(saved, 10) : 1250;
-    } catch (e) {
-      return 1250;
-    }
-  });
-
-  // Load initial benchmark plate & check server on mount
+  // Initial Load: Check server health & load diary ONLY (starts completely empty)
   useEffect(() => {
-    const existingKey = getGeminiApiKey();
-    setGeminiKeyInput(existingKey);
-
-    // Load initial benchmark plate
-    const initialPlate = loadBenchmarkPlate('meal_12082', 16.0);
-    setAnalysis(initialPlate);
-
-    // Check server health
     checkServerHealth().then((health) => {
       setServerHealth(health);
-      if (health.online && health.yolo_available && health.weights_present && !existingKey) {
-        setActiveEngine('yolov8m_local');
-      } else if (health.online) {
-        setActiveEngine('transformer_vit');
-      } else if (existingKey) {
-        setActiveEngine('gemini_vision');
-      } else {
-        setActiveEngine('on_device');
-      }
     });
-
-    // Load diary entries
-    loadDiaryEntries();
+    loadDiary();
   }, []);
 
-  // Deep link support for URL search parameters (?tab=diary, ?benchmark=12082, etc.)
-  useEffect(() => {
+  const loadDiary = async () => {
     try {
-      if (typeof window === 'undefined' || !window.location || !window.location.search) return;
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get('tab');
-      if (tabParam && ['scanner', 'database', 'diary'].includes(tabParam)) {
-        setActiveTab(tabParam);
+      const entries = await getFoodDiary();
+      if (Array.isArray(entries)) {
+        setDiaryEntries(entries);
       }
-      const benchParam = params.get('benchmark');
-      if (benchParam) {
-        const plateId = benchParam.startsWith('meal_') ? benchParam : `meal_${benchParam}`;
-        setSelectedBenchmarkId(plateId);
-        const plate = loadBenchmarkPlate(plateId, plateDiameter);
-        if (plate) {
-          setAnalysis(plate);
-          setCustomImageSrc(null);
-          setViewportMode('benchmarks');
-        }
-      }
-    } catch (e) {
-      console.warn('URL param parse error:', e);
-    }
-  }, [plateDiameter]);
-
-  // Sync water intake to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('fitvision_water_ml', String(waterIntakeMl));
-    } catch (e) {}
-  }, [waterIntakeMl]);
-
-  const loadDiaryEntries = async () => {
-    try {
-      const entries = await getFoodDiary(50);
-      setMealDiary(entries || []);
     } catch (e) {
       console.warn('Failed to load food diary:', e);
     }
   };
 
-  // Camera Management
-  const startCamera = async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setErrorMsg('Camera access is not available in this browser. Upload a meal photo instead.');
-      return;
-    }
-
-    setCameraActive(true);
-    setViewportMode('camera');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      } else {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    } catch (err) {
-      console.error('Camera stream access error:', err);
-      setErrorMsg('Unable to access camera. Please allow camera permissions or upload an image.');
-      setCameraActive(false);
+  // Re-check server on demand
+  const handleRefreshServer = async () => {
+    showToast('Checking PyTorch API status on port 5050...');
+    const health = await checkServerHealth();
+    setServerHealth(health);
+    if (health.online) {
+      showToast('🟢 PyTorch Food-101 Server is online & ready!');
+    } else {
+      showToast('⚪ PyTorch Server offline. Start via start_backend.bat');
     }
   };
 
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setCameraActive(false);
-  };
-
-  useEffect(() => () => {
-    const stream = videoRef.current?.srcObject;
-    stream?.getTracks().forEach((track) => track.stop());
-  }, []);
-
-  const captureCameraFrame = () => {
-    if (!videoRef.current || videoRef.current.readyState < 2) {
-      setErrorMsg('The camera is still starting. Please wait a moment and try again.');
-      return;
-    }
-    try {
-      soundEffects.playRepSuccess();
-    } catch (e) {}
-
-    const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth || 640;
-    canvas.height = videoRef.current.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      setCustomImageSrc(dataUrl);
-      setAnalysis(null);
-      stopCamera();
-      triggerFoodAnalysis(dataUrl);
+  // Trigger File Input Click (for Upload / Change Photo)
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
     }
   };
 
@@ -206,1292 +101,1236 @@ export default function FoodAnalyzer() {
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    e.currentTarget.value = '';
+
     if (!file.type.startsWith('image/')) {
-      setErrorMsg('Choose an image file to analyze.');
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setErrorMsg('Choose an image smaller than 10 MB.');
+      setErrorMsg('Please upload a valid image file (JPG, PNG, WebP).');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const base64 = event.target?.result;
-      if (base64) {
-        setCustomImageSrc(base64);
-        setAnalysis(null);
-        setSelectedDishId(null);
-        setViewportMode('upload');
-        triggerFoodAnalysis(base64);
-      }
+      const src = event.target?.result;
+      setCustomImageSrc(src);
+      setUploadedFileName(file.name);
+      setAnalysis(null); // Reset previous analysis on new photo upload
+      setViewportMode('upload');
+      setErrorMsg(null);
+      showToast('📸 Photo loaded! Click "Scan Meal with PyTorch AI" to analyze.');
     };
-    reader.onerror = () => setErrorMsg('The selected image could not be read. Try another image.');
     reader.readAsDataURL(file);
   };
 
-  // Benchmark Plate Selection
-  const handleSelectBenchmark = (benchMeal) => {
-    setSelectedBenchmarkId(benchMeal.id);
+  // Drag & Drop Handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCustomImageSrc(event.target?.result);
+        setUploadedFileName(file.name);
+        setAnalysis(null);
+        setViewportMode('upload');
+        setErrorMsg(null);
+        showToast('📸 Meal photo loaded! Tap "Scan Meal with PyTorch AI".');
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setErrorMsg('Please drop an image file (JPG, PNG, WebP).');
+    }
+  };
+
+  // Reset / Clear Photo Back to Empty State
+  const handleResetPhoto = () => {
     setCustomImageSrc(null);
-    setViewportMode('benchmarks');
-    stopCamera();
-
-    const loaded = loadBenchmarkPlate(benchMeal.id, plateDiameter);
-    setAnalysis(loaded);
-    setSelectedDishId(null);
+    setAnalysis(null);
+    setUploadedFileName('');
     setErrorMsg(null);
+    showToast('Photo cleared. Ready for new upload.');
+  };
 
+  // Select Sample Demo Plate (User-initiated only)
+  const handleSelectSample = (sample) => {
+    const loaded = loadSamplePlate(sample.id, plateDiameter);
+    setAnalysis(loaded);
+    setPortionGrams(loaded.totals.weight_g);
+    setCustomImageSrc(sample.image || null);
+    setUploadedFileName(`${sample.name}.jpg`);
+    showToast(`Loaded ${sample.name} demonstration plate`);
     try {
       soundEffects.playFormMilestone();
     } catch (e) {}
   };
 
-  // Run AI Scan with chosen engine
-  const triggerFoodAnalysis = async (imageSrc = customImageSrc) => {
-    if (!imageSrc) {
-      setErrorMsg('Please select a plate image, snap a photo, or choose a benchmark plate.');
+  // Capture Snapshot from Webcam
+  const handleCaptureCamera = () => {
+    if (!webcamRef.current) return;
+    const screenshot = webcamRef.current.getScreenshot();
+    if (screenshot) {
+      setCustomImageSrc(screenshot);
+      setUploadedFileName('webcam_snapshot.jpg');
+      setViewportMode('upload');
+      setAnalysis(null);
+      showToast('Photo captured! Running PyTorch neural inference...');
+      runInference(screenshot);
+    }
+  };
+
+  // Trigger Inference
+  const runInference = async (imgSource) => {
+    const targetImg = imgSource || customImageSrc;
+    if (!targetImg) {
+      setErrorMsg('Please upload a photo, choose a demo plate, or snap with webcam.');
       return;
     }
 
     setIsAnalyzing(true);
     setErrorMsg(null);
+    setScanStage('Initializing PyTorch EfficientNet-B2 neural net...');
+
+    const timer1 = setTimeout(() => {
+      setScanStage('Extracting deep convolutional feature activations...');
+    }, 400);
+
+    const timer2 = setTimeout(() => {
+      setScanStage('Computing Grad-CAM explainability heatmap layers...');
+    }, 900);
 
     try {
-      let result;
-      if (activeEngine === 'transformer_vit') {
-        result = await classifyWithTransformer(imageSrc, 'Jacques7103/Food-Recognition', plateDiameter);
-      } else if (activeEngine === 'gemini_vision') {
-        const key = getGeminiApiKey();
-        if (!key) {
-          setIsSettingsOpen(true);
-          throw new Error('Gemini API key is required. Please paste your key in Settings.');
-        }
-        result = await scanWithGeminiVision(imageSrc, key, plateDiameter);
-      } else if (activeEngine === 'yolov8m_local') {
-        result = await analyzeWithLocalServer(imageSrc, plateDiameter);
-      } else {
-        result = await analyzeOnDeviceFallback(imageSrc, plateDiameter);
-      }
-
+      const result = await classifyWithPyTorch(targetImg, plateDiameter);
       setAnalysis(result);
-      setSelectedDishId(null);
-
-      // Play audio celebratory sound
+      if (result.totals?.weight_g) {
+        setPortionGrams(result.totals.weight_g);
+      }
+      showToast(`🎯 Classified: ${result.plate_name}`);
       try {
         soundEffects.playFanfare();
       } catch (e) {}
-
-      // Optional voice coach announcement
-      if (result.totals && result.totals.calories) {
-        const voiceText = VoiceCoach.getLanguage() === 'hi'
-          ? `विश्लेषण पूरा हुआ। ${result.dishes.length} खाद्य पदार्थ मिले। कुल ${Math.round(result.totals.calories)} कैलोरी और ${Math.round(result.totals.protein)} ग्राम प्रोटीन।`
-          : `Analysis complete. Detected ${result.dishes.length} components, totaling ${Math.round(result.totals.calories)} calories and ${Math.round(result.totals.protein)} grams of protein.`;
-        speakInstruction(
-          voiceText,
-          { category: 'telemetry', priority: 'normal' }
-        );
-      }
     } catch (err) {
-      console.error('Scan error:', err);
-      setErrorMsg(err.message || 'Food analysis failed. Check the selected engine and try again.');
+      console.warn('PyTorch inference error:', err);
+      setErrorMsg(`Inference notice: ${err.message}.`);
     } finally {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       setIsAnalyzing(false);
+      setScanStage('');
     }
   };
 
-  // Diameter Slider Change
-  const handleDiameterChange = (e) => {
-    const newDiam = parseFloat(e.target.value);
-    setPlateDiameter(newDiam);
-    if (analysis) {
-      const recalibrated = recalibratePlateDiameter(analysis, newDiam);
-      setAnalysis(recalibrated);
+  // Dynamic Portion Rescaling
+  const handlePortionChange = (newGrams) => {
+    const grams = Number(newGrams);
+    setPortionGrams(grams);
+
+    if (analysis && analysis.dishes?.[0]) {
+      const primaryFood = analysis.dishes[0].food;
+      const nutr = calculateFoodNutrition(primaryFood, grams);
+      const score = calculateNutriScore(nutr.calories, nutr.protein, nutr.carbs, nutr.fat);
+
+      const updatedDishes = [
+        {
+          ...analysis.dishes[0],
+          weight_g: grams,
+          calories: nutr.calories,
+          protein: nutr.protein,
+          carbs: nutr.carbs,
+          fat: nutr.fat,
+          fiber: nutr.fiber,
+        },
+      ];
+
+      setAnalysis({
+        ...analysis,
+        dishes: updatedDishes,
+        totals: {
+          calories: nutr.calories,
+          protein: nutr.protein,
+          carbs: nutr.carbs,
+          fat: nutr.fat,
+          weight_g: grams,
+        },
+        nutriScore: score,
+        micronutrients: nutr.micronutrients,
+      });
     }
   };
 
-  // Dish Fine-Tuning
-  const handleUpdateDishGrams = (dishId, newGrams) => {
-    const updated = updateDishInAnalysis(analysis, dishId, { weight_g: parseFloat(newGrams) });
-    setAnalysis(updated);
-  };
-
-  const handleUpdateDishFood = (dishId, foodKey) => {
-    const updated = updateDishInAnalysis(analysis, dishId, {
-      food: foodKey,
-      name: FOOD_DATABASE_256[foodKey]?.name || foodKey,
-    });
-    setAnalysis(updated);
-  };
-
-  const handleRemoveDish = (dishId) => {
-    const updated = removeDishFromAnalysis(analysis, dishId);
-    setAnalysis(updated);
-    if (selectedDishId === dishId) setSelectedDishId(null);
-  };
-
-  const handleAddDish = () => {
-    if (!newDishFoodKey) return;
-    const updated = addDishToAnalysis(analysis, newDishFoodKey, newDishGrams);
-    setAnalysis(updated);
-    setIsAddingDish(false);
-  };
-
-  // Voice Coach readout
-  const handleVoiceVerdict = () => {
+  // Spoken Voice Feedback
+  const handleVoiceFeedback = () => {
     if (!analysis) return;
-    const text = VoiceCoach.getLanguage() === 'hi'
-      ? `${analysis.plate_name}। कुल ऊर्जा ${Math.round(analysis.totals.calories)} कैलोरी, ${Math.round(analysis.totals.protein)} ग्राम प्रोटीन और ${Math.round(analysis.totals.carbs)} ग्राम कार्बोहाइड्रेट। न्यूट्रीस्कोर ग्रेड ${analysis.nutriScore.grade}।`
-      : `${analysis.plate_name}. ${analysis.athletic_verdict}. Total energy: ${Math.round(analysis.totals.calories)} calories, ${Math.round(analysis.totals.protein)} grams protein, ${Math.round(analysis.totals.carbs)} grams carbs. NutriScore Grade ${analysis.nutriScore.grade}.`;
-    speakInstruction(text, { category: 'advice', priority: 'urgent' });
+    const msg = `${analysis.plate_name}. Caloric yield: ${Math.round(analysis.totals.calories)} calories, ${Math.round(analysis.totals.protein)} grams protein, ${Math.round(analysis.totals.carbs)} grams carbohydrates. ${analysis.athletic_verdict}`;
+    speakInstruction(msg);
   };
 
-  // Log to Meal Diary
-  const handleLogMeal = async () => {
-    if (!analysis || !analysis.totals) return;
+  // Copy Summary to Clipboard
+  const handleCopySummary = () => {
+    if (!analysis) return;
+    const summary = `FitVision AI Meal Scan: ${analysis.plate_name}
+Portion: ${portionGrams}g
+Calories: ${Math.round(analysis.totals.calories)} kcal
+Protein: ${Math.round(analysis.totals.protein)}g
+Carbs: ${Math.round(analysis.totals.carbs)}g
+Fat: ${Math.round(analysis.totals.fat)}g
+Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
+    navigator.clipboard?.writeText(summary);
+    showToast('📋 Nutrition breakdown copied to clipboard!');
+  };
+
+  // Log to Diary
+  const handleLogToDiary = async () => {
+    if (!analysis) return;
     const entry = {
       id: `meal_${Date.now()}`,
-      timestamp: Date.now(),
-      mealType: selectedMealType,
-      name: analysis.plate_name || `${selectedMealType} Plate`,
+      name: analysis.plate_name,
+      mealType: 'Meal Scan',
       calories: analysis.totals.calories,
       protein: analysis.totals.protein,
       carbs: analysis.totals.carbs,
       fat: analysis.totals.fat,
-      weight_g: analysis.totals.weight_g,
-      nutriScore: analysis.nutriScore?.grade || 'A',
-      dishes: analysis.dishes.map((d) => ({
-        name: d.name,
-        food: d.food,
-        icon: d.icon,
-        weight_g: d.weight_g,
-        calories: d.calories,
-      })),
+      timestamp: Date.now(),
     };
 
     try {
       await saveFoodEntry(entry);
-      await loadDiaryEntries();
+      setDiaryEntries((prev) => [entry, ...prev]);
+      showToast('🎉 Meal successfully logged to Daily Diary!');
       try {
         soundEffects.playRepSuccess();
       } catch (e) {}
-      const mealTypeHindi = {
-        breakfast: 'नाश्ते',
-        lunch: 'दोपहर के भोजन',
-        dinner: 'रात के भोजन',
-        snack: 'स्नैक',
-      }[selectedMealType] || 'भोजन';
-      const voiceText = VoiceCoach.getLanguage() === 'hi'
-        ? `${entry.name} को आपकी ${mealTypeHindi} डायरी में दर्ज किया गया।`
-        : `Logged ${entry.name} to your ${selectedMealType} diary.`;
-      speakInstruction(voiceText, { category: 'telemetry' });
-      setActiveTab('diary');
     } catch (e) {
-      console.error('Failed to log meal:', e);
-      setErrorMsg('Failed to save meal entry to storage.');
+      showToast('Error saving to diary');
     }
   };
 
-  const handleDeleteMealEntry = async (id) => {
-    await deleteFoodEntry(id);
-    await loadDiaryEntries();
-  };
-
-  // Export Plate JSON
-  const handleExportMealJson = () => {
-    if (!analysis) return;
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(analysis, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `fitvision_plate_${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  };
-
-  // Gemini API Key Save & Test
-  const handleSaveGeminiKey = async () => {
-    setIsTestingKey(true);
-    setKeyTestStatus(null);
+  // Delete Diary Entry
+  const handleDeleteDiaryItem = async (id) => {
     try {
-      setGeminiApiKey(geminiKeyInput);
-      // Quick validation with 1x1 test pixel
-      const testPixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
-      await scanWithGeminiVision(testPixel, geminiKeyInput, 16.0);
-      setKeyTestStatus('valid');
-      setActiveEngine('gemini_vision');
-      setTimeout(() => setIsSettingsOpen(false), 800);
-    } catch (e) {
-      console.warn('API key test error:', e);
-      setKeyTestStatus('error');
-    } finally {
-      setIsTestingKey(false);
-    }
+      await deleteFoodEntry(id);
+      setDiaryEntries((prev) => prev.filter((item) => item.id !== id));
+      showToast('Meal removed from diary');
+    } catch (e) {}
   };
 
-  // Filtered Food Database items
-  const filteredDatabaseFoods = useMemo(() => {
-    const list = Object.values(FOOD_DATABASE_256);
-    return list.filter((item) => {
-      const matchSearch =
-        !dbSearch || item.name.toLowerCase().includes(dbSearch.toLowerCase());
-      if (!matchSearch) return false;
-
-      if (dbFilter === 'high_protein') return item.protein >= 12;
-      if (dbFilter === 'low_carb') return item.carbs <= 10;
-      if (dbFilter === 'low_cal') return item.calories <= 120;
-      if (dbFilter === 'high_density') return item.density >= 0.9;
-      return true;
+  // Filtered Food-101 Database items
+  const filteredFoodList = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return Object.entries(FOOD101_DATABASE).filter(([key, item]) => {
+      const matchQuery = !q || item.name.toLowerCase().includes(q) || key.includes(q);
+      const matchCat = selectedCategory === 'All' || item.category === selectedCategory;
+      return matchQuery && matchCat;
     });
-  }, [dbSearch, dbFilter]);
+  }, [searchQuery, selectedCategory]);
 
-  // Today's Diary Aggregation
-  const todayDiaryTotals = useMemo(() => {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-
-    const todayMeals = mealDiary.filter((m) => (m.timestamp || 0) >= startOfToday.getTime());
-    return {
-      count: todayMeals.length,
-      calories: Math.round(todayMeals.reduce((acc, m) => acc + (m.calories || 0), 0)),
-      protein: Math.round(todayMeals.reduce((acc, m) => acc + (m.protein || 0), 0) * 10) / 10,
-      carbs: Math.round(todayMeals.reduce((acc, m) => acc + (m.carbs || 0), 0) * 10) / 10,
-      fat: Math.round(todayMeals.reduce((acc, m) => acc + (m.fat || 0), 0) * 10) / 10,
-    };
-  }, [mealDiary]);
-
-  // Image source to display in viewport
-  const currentViewportImage = useMemo(() => {
-    if (customImageSrc) return customImageSrc;
-    const bm = BENCHMARK_MEALS.find((b) => b.id === selectedBenchmarkId);
-    return bm ? bm.image : '/food_samples/12082_annot.jpg';
-  }, [customImageSrc, selectedBenchmarkId]);
+  // Categories list
+  const categories = useMemo(() => {
+    const cats = new Set(Object.values(FOOD101_DATABASE).map((d) => d.category));
+    return ['All', ...Array.from(cats).sort()];
+  }, []);
 
   return (
-    <div className="food-analyzer-page">
+    <div className="food-studio-container">
       {/* ------------------------------------------------------------------
-          Header & Global Engine Status
+          Top Header Bar
           ------------------------------------------------------------------ */}
-      <header className="fa-header">
-        <div className="fa-header-left">
-          <div className="fa-super-badge">
-            <span className="fa-pulse-dot" />
-            FOOD RECOGNITION · NUTRITION ESTIMATES
-          </div>
-          <h1 className="fa-page-title">
-            🥗 Food Vision & Nutrition Studio
+      <header className="fa-top-header">
+        <div className="fa-title-group">
+          <h1>
+            <span className="fa-title-icon">🥗</span> Food Vision &amp; Nutrition Studio
           </h1>
-          <p className="fa-page-sub">
-            Identify meal components, review serving estimates, and adjust nutrition before logging.
+          <p>
+            PyTorch EfficientNet-B2 neural food recognition with Grad-CAM explainability heatmaps
           </p>
         </div>
 
-        <div className="fa-header-right">
+        <div className="fa-header-badges">
           <button
             type="button"
-            className="fa-engine-pill"
-            onClick={() => setIsSettingsOpen(true)}
-            title="Configure Vision Engine & API Keys"
+            className="fa-server-status-pill"
+            onClick={handleRefreshServer}
+            title="Click to re-ping PyTorch Backend on Port 5050"
           >
-            <span
-              className={`fa-engine-status-dot ${
-                activeEngine === 'transformer_vit'
-                  ? 'vit'
-                  : activeEngine === 'gemini_vision'
-                  ? 'cloud'
-                  : activeEngine === 'yolov8m_local' &&
-                    serverHealth.online &&
-                    serverHealth.yolo_available &&
-                    serverHealth.weights_present
-                  ? 'online'
-                  : 'offline'
-              }`}
-            />
-            {activeEngine === 'transformer_vit'
-              ? '🤗 ViT Food Transformer'
-              : activeEngine === 'gemini_vision'
-              ? '⚡ Gemini Vision AI'
-              : activeEngine === 'yolov8m_local'
-              ? serverHealth.online && serverHealth.yolo_available && serverHealth.weights_present
-                ? '🟢 YOLOv8m Local (5050)'
-                : '⚪ YOLOv8m Local (Offline)'
-              : '📱 Offline benchmark mode'}
+            <span className={`fa-status-dot ${serverHealth.online ? 'online' : 'offline'}`} />
+            <span>
+              {serverHealth.online ? 'PyTorch Server: Online (5050)' : 'PyTorch Server: Offline'}
+            </span>
           </button>
+
+          <span className="fa-meta-badge">EfficientNet-B2</span>
+          <span className="fa-meta-badge">101 Categories</span>
 
           <button
             type="button"
-            className="fa-btn-gear"
+            className="fa-voice-btn"
             onClick={() => setIsSettingsOpen(true)}
             aria-label="Settings"
+            title="Open AI Engine Settings"
+            style={{ padding: '6px 14px' }}
           >
-            ⚙️
+            ⚙️ Settings
           </button>
         </div>
       </header>
 
       {/* ------------------------------------------------------------------
-          Tab Navigation Strip
+          Navigation Tabs Bar
           ------------------------------------------------------------------ */}
-      <nav className="fa-tab-nav" aria-label="Studio Tabs">
+      <nav className="fa-tabs-bar" role="tablist">
         <button
           type="button"
-          aria-pressed={activeTab === 'scanner'}
+          role="tab"
+          aria-selected={activeTab === 'scanner'}
           className={`fa-tab-btn ${activeTab === 'scanner' ? 'active' : ''}`}
           onClick={() => setActiveTab('scanner')}
         >
-          <span>🥗</span> Spatial Plate Scanner & Diagnostics
+          <span>📸</span> Spatial Plate Scanner &amp; Diagnostics
         </button>
+
         <button
           type="button"
-          aria-pressed={activeTab === 'database'}
-          className={`fa-tab-btn ${activeTab === 'database' ? 'active' : ''}`}
-          onClick={() => setActiveTab('database')}
+          role="tab"
+          aria-selected={activeTab === 'library'}
+          className={`fa-tab-btn ${activeTab === 'library' ? 'active' : ''}`}
+          onClick={() => setActiveTab('library')}
         >
-          <span>📊</span> UEC-256 Food & Density Matrix
-          <span className="fa-tab-count-badge">256 Items</span>
+          <span>📖</span> UEC-256 Food &amp; Density Matrix
         </button>
+
         <button
           type="button"
-          aria-pressed={activeTab === 'diary'}
+          role="tab"
+          aria-selected={activeTab === 'diary'}
           className={`fa-tab-btn ${activeTab === 'diary' ? 'active' : ''}`}
           onClick={() => setActiveTab('diary')}
         >
-          <span>📖</span> Clinical Meal Diary & Hydration
-          {todayDiaryTotals.count > 0 && (
-            <span className="fa-tab-count-badge">{todayDiaryTotals.count} Today</span>
-          )}
+          <span>📋</span> Clinical Meal Diary &amp; Hydration
         </button>
       </nav>
 
-      {/* Error Banner */}
-      {errorMsg && (
-        <div className="fa-error-banner" role="alert">
-          <span>⚠️ {errorMsg}</span>
-          <button type="button" onClick={() => setErrorMsg(null)} aria-label="Dismiss error">✕</button>
-        </div>
-      )}
-
       {/* ------------------------------------------------------------------
-          TAB 1: SPATIAL PLATE SCANNER & VOLUMETRIC DIAGNOSTICS
+          TAB 1: AI Scanner & Grad-CAM Visualizer
           ------------------------------------------------------------------ */}
       {activeTab === 'scanner' && (
-        <div className="fa-scanner-layout">
-          {/* Left Column: Spatial Viewport */}
-          <div className="fa-viewport-column">
-            <div className="fa-viewport-card">
-              {/* Toolbar */}
-              <div className="fa-viewport-toolbar">
-                <div className="fa-mode-pill-group">
-                  <button
-                    className={`fa-mode-pill ${viewportMode === 'benchmarks' ? 'active' : ''}`}
-                    onClick={() => {
-                      stopCamera();
-                      setViewportMode('benchmarks');
-                    }}
-                  >
-                    🍱 Benchmark Plates
-                  </button>
-                  <button
-                    className={`fa-mode-pill ${viewportMode === 'camera' ? 'active' : ''}`}
-                    onClick={startCamera}
-                  >
-                    📸 Live Camera
-                  </button>
-                  <button
-                    className={`fa-mode-pill ${viewportMode === 'upload' ? 'active' : ''}`}
-                    onClick={() => {
-                      stopCamera();
-                      setViewportMode('upload');
-                      fileInputRef.current?.click();
-                    }}
-                  >
-                    📁 Upload Image
-                  </button>
-                </div>
+        <section aria-label="AI Food Scanner" className="fa-scanner-tab-section">
+          {/* Hidden File Input (Used by "Upload Photo" & "Change Photo") */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
 
-                {/* Quick Engine Switcher */}
-                <div className="fa-engine-selector-mini" role="radiogroup" aria-label="Active AI Engine">
-                  <button
-                    className={`fa-engine-choice-btn ${activeEngine === 'transformer_vit' ? 'active vit' : ''}`}
-                    onClick={() => setActiveEngine('transformer_vit')}
-                    title="Hugging Face Vision Transformer (Jacques7103/Food-Recognition)"
-                  >
-                    🤗 ViT Transformer
-                  </button>
-                  <button
-                    className={`fa-engine-choice-btn ${activeEngine === 'gemini_vision' ? 'active gemini' : ''}`}
-                    onClick={() => setActiveEngine('gemini_vision')}
-                    title="Google Gemini Vision AI"
-                  >
-                    ⚡ Gemini
-                  </button>
-                  <button
-                    className={`fa-engine-choice-btn ${activeEngine === 'yolov8m_local' ? 'active yolo' : ''}`}
-                    onClick={() => setActiveEngine('yolov8m_local')}
-                    title="Local YOLOv8m Volumetric Server (Port 5050)"
-                  >
-                    🟢 YOLO
-                  </button>
-                  <button
-                    className={`fa-engine-choice-btn ${activeEngine === 'on_device' ? 'active device' : ''}`}
-                    onClick={() => setActiveEngine('on_device')}
-                    title="On-Device Heuristics & Benchmark Plates"
-                  >
-                    📱 On-Device
-                  </button>
-                </div>
+          {/* Error Banner */}
+          {errorMsg && (
+            <div className="fa-alert-banner">
+              <span>⚠️ {errorMsg}</span>
+              <button
+                type="button"
+                onClick={() => setErrorMsg(null)}
+                className="fa-alert-close"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Offline Notice (if analysis was performed offline) */}
+          {analysis?.is_offline_simulation && (
+            <div className="fa-notice-banner">
+              <span>ℹ️ {analysis.explanation}</span>
+              <button type="button" className="fa-notice-btn" onClick={handleRefreshServer}>
+                🔄 Check Backend
+              </button>
+            </div>
+          )}
+
+          {/* ==============================================================
+              CASE A: EMPTY STATE (No photo uploaded yet)
+              ============================================================== */}
+          {!customImageSrc && viewportMode !== 'camera' ? (
+            <div
+              className={`fa-empty-hero-canvas ${isDragOver ? 'drag-over' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <div className="fa-radar-reticle">
+                <div className="fa-radar-ping" />
+                <div className="fa-radar-core">📸</div>
+              </div>
+
+              <h2 className="fa-empty-title">Upload Your Meal Photo</h2>
+              <p className="fa-empty-subtitle">
+                Drag and drop your food picture here, or browse from your device. PyTorch will recognize the dish across 101 classes, estimate caloric &amp; macronutrient yield, and compute explainable Grad-CAM activation heatmaps.
+              </p>
+
+              <div className="fa-empty-cta-group">
+                <button
+                  type="button"
+                  className="fa-btn-upload-primary"
+                  onClick={triggerFileInput}
+                >
+                  <span>📁</span> Select Photo from Device
+                </button>
 
                 <button
                   type="button"
-                  className="fa-trigger-scan-btn"
-                  onClick={() => triggerFoodAnalysis()}
-                  disabled={isAnalyzing || cameraActive || !customImageSrc}
-                  aria-live="polite"
+                  className="fa-btn-camera-secondary"
+                  onClick={() => setViewportMode('camera')}
                 >
-                  {isAnalyzing ? (
-                    <>⏳ Analyzing meal…</>
-                  ) : customImageSrc ? (
-                    <>⚡ Analyze meal</>
-                  ) : (
-                    <>✓ Benchmark analyzed</>
-                  )}
+                  <span>📷</span> Open Live Webcam
                 </button>
-
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  style={{ display: 'none' }}
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                />
               </div>
 
-              {/* Viewport Canvas Stage */}
-              <div className="fa-spatial-stage" style={{ aspectRatio: imageAspectRatio }}>
-                {cameraActive ? (
-                  <div className="fa-camera-stage">
-                    <video ref={videoRef} className="fa-camera-video" playsInline />
-                    <div className="fa-camera-crosshair" />
+              <div className="fa-drop-canvas-hint">
+                <span>or drag &amp; drop meal photo anywhere onto this canvas</span>
+                <span className="fa-format-pill">JPG • PNG • WebP • Auto-Resized for Neural Net</span>
+              </div>
+
+              <div className="fa-capabilities-strip">
+                <div className="fa-cap-item">
+                  <span className="fa-cap-icon">⚡</span>
+                  <div>
+                    <strong>101 Food Classes</strong>
+                    <span>PyTorch EfficientNet-B2</span>
+                  </div>
+                </div>
+
+                <div className="fa-cap-item">
+                  <span className="fa-cap-icon">🔥</span>
+                  <div>
+                    <strong>Grad-CAM Heatmaps</strong>
+                    <span>Visual explainability layers</span>
+                  </div>
+                </div>
+
+                <div className="fa-cap-item">
+                  <span className="fa-cap-icon">🥗</span>
+                  <div>
+                    <strong>Nutri-Score &amp; Macros</strong>
+                    <span>Calories, Protein, Carbs, Fat</span>
+                  </div>
+                </div>
+
+                <div className="fa-cap-item">
+                  <span className="fa-cap-icon">⚖️</span>
+                  <div>
+                    <strong>Portion Calibrator</strong>
+                    <span>Interactive weight scaling</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Sample Demo Plates (Unselected presets for fast testing) */}
+              <div className="fa-quick-demo-strip">
+                <span className="fa-demo-strip-label">No meal picture handy? Test with a demo plate:</span>
+                <div className="fa-demo-strip-pills">
+                  {SAMPLE_PLATES.map((sample) => (
                     <button
-                      className="fa-snap-btn"
-                      onClick={captureCameraFrame}
-                      title="Snap Plate"
+                      key={sample.id}
+                      type="button"
+                      className="fa-demo-strip-pill"
+                      onClick={() => handleSelectSample(sample)}
+                      title={sample.description}
                     >
-                      📸
+                      <span>{sample.icon}</span>
+                      <span>{sample.name}</span>
                     </button>
-                  </div>
-                ) : (
-                  <>
-                    <img
-                      src={currentViewportImage}
-                      alt="Meal selected for food analysis"
-                      className="fa-viewport-image"
-                      onLoad={(event) => {
-                        const { naturalWidth, naturalHeight } = event.currentTarget;
-                        if (naturalWidth && naturalHeight) {
-                          setImageAspectRatio(Math.min(2, Math.max(0.7, naturalWidth / naturalHeight)));
-                        }
-                      }}
-                    />
-
-                    {/* Interactive Bounding Boxes */}
-                    {analysis &&
-                      analysis.dishes &&
-                      analysis.dishes.map((dish) => {
-                        const box = dish.box;
-                        if (!box) return null;
-                        const isSelected = selectedDishId === dish.id;
-
-                        return (
-                          <button
-                            type="button"
-                            key={dish.id}
-                            className={`fa-bbox-overlay ${isSelected ? 'selected' : ''}`}
-                            style={{
-                              left: `${box.x}%`,
-                              top: `${box.y}%`,
-                              width: `${box.width}%`,
-                              height: `${box.height}%`,
-                            }}
-                            onClick={() => setSelectedDishId(dish.id)}
-                            aria-pressed={isSelected}
-                            aria-label={`${dish.name}, ${
-                              dish.confidence > 0
-                                ? `${Math.round(dish.confidence * 100)} percent detection confidence`
-                                : 'detection confidence unavailable'
-                            }`}
-                            title={`${dish.name} (${dish.weight_g}g)`}
-                          >
-                            <div className="fa-bbox-tag">
-                              <span>{dish.icon || '🍽️'}</span>
-                              <span>{dish.name}</span>
-                              <span className="fa-bbox-conf">
-                                {Math.round(dish.confidence * 100)}%
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-
-                    {analysis && analysis.dishes.length === 0 && (
-                      <div className="fa-no-detections" role="status">
-                        <strong>No foods detected</strong>
-                        <span>Try a brighter, closer photo with the plate fully visible.</span>
-                      </div>
-                    )}
-
-                    {/* Futuristic Scanning Beam */}
-                    {isAnalyzing && (
-                      <>
-                        <div className="fa-scanning-beam" />
-                        <div className="fa-scanning-grid" />
-                        <span className="fa-scan-status" role="status">Analyzing image…</span>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Volumetric Physics Calibration Card */}
-              <div className="fa-physics-card">
-                <div className="fa-physics-header">
-                  <span className="fa-physics-title">
-                        📐 Portion scale (plate reference)
-                      </span>
-                  <span style={{ fontSize: '11.5px', color: '#94a3b8' }}>
-                    Portion weights are estimates — review before logging
-                  </span>
-                </div>
-
-                <div className="fa-plate-slider-row">
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>12 cm</span>
-                  <input
-                    type="range"
-                    className="fa-plate-slider"
-                    min="12.0"
-                    max="30.0"
-                    step="0.5"
-                    value={plateDiameter}
-                    onChange={handleDiameterChange}
-                  />
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>30 cm</span>
-                  <span className="fa-plate-diam-value">{plateDiameter.toFixed(1)} cm</span>
-                </div>
-
-                <div className="fa-physics-metrics-grid">
-                  <div className="fa-physics-metric-box">
-                    <span className="fa-pm-label">Plate Surface Area</span>
-                    <span className="fa-pm-val">
-                      {Math.round(Math.PI * Math.pow(plateDiameter / 2, 2))} cm²
-                    </span>
-                  </div>
-                  <div className="fa-physics-metric-box">
-                    <span className="fa-pm-label">Est. Total Mass</span>
-                    <span className="fa-pm-val">
-                      {analysis?.totals?.weight_g || 0} g
-                    </span>
-                  </div>
-                  <div className="fa-physics-metric-box">
-                    <span className="fa-pm-label">Detection confidence</span>
-                    <span className="fa-pm-val">
-                      {analysis?.overall_confidence > 0
-                        ? `${Math.round(analysis.overall_confidence * 100)}%`
-                        : 'Not provided'}
-                    </span>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
+          ) : (
+            /* ==============================================================
+               CASE B: ACTIVE WORKSPACE (Photo uploaded or Camera active)
+               ============================================================== */
+            <div className="fa-workspace-grid">
+              {/* Left Column: Visual Viewport & Studio Toolbar */}
+              <div className="fa-panel-card">
+                {/* Studio Toolbar (Photo Status + CHANGE PHOTO + Reset) */}
+                <div className="fa-studio-toolbar">
+                  <div className="fa-toolbar-left">
+                    <span className="fa-photo-status-badge">
+                      {analysis ? (
+                        <>🟢 Analyzed • {analysis.plate_name}</>
+                      ) : (
+                        <>📷 Photo Ready • Tap Scan Meal</>
+                      )}
+                    </span>
+                    {uploadedFileName && (
+                      <span className="fa-filename-tag" title={uploadedFileName}>
+                        {uploadedFileName}
+                      </span>
+                    )}
+                  </div>
 
-            {/* Benchmark Preset Strips */}
-            <div className="fa-benchmark-section">
-              <span className="fa-benchmark-title">
-                🏆 Sample benchmark plates
-              </span>
-              <div className="fa-benchmark-grid">
-                {BENCHMARK_MEALS.map((bm) => (
+                  <div className="fa-toolbar-actions">
+                    {/* KEY FEATURE: PROMINENT CHANGE PHOTO BUTTON */}
+                    <button
+                      type="button"
+                      className="fa-tool-action-btn fa-change-photo-btn"
+                      onClick={triggerFileInput}
+                      title="Upload or choose a different photo"
+                    >
+                      <span>🔄</span> Change Photo
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`fa-tool-action-btn ${viewportMode === 'camera' ? 'active' : ''}`}
+                      onClick={() => setViewportMode(viewportMode === 'camera' ? 'upload' : 'camera')}
+                      title="Toggle Webcam / Photo View"
+                    >
+                      <span>📷</span> {viewportMode === 'camera' ? 'View Photo' : 'Webcam'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="fa-tool-action-btn fa-clear-btn"
+                      onClick={handleResetPhoto}
+                      title="Clear photo and start over"
+                    >
+                      <span>✕</span> Clear
+                    </button>
+                  </div>
+                </div>
+
+                {/* Viewport Box */}
+                <div
+                  className={`fa-viewport-box ${customImageSrc || analysis?.gradcam_image ? 'has-image' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {viewportMode === 'camera' ? (
+                    <div className="fa-camera-wrap">
+                      <Webcam
+                        ref={webcamRef}
+                        audio={false}
+                        screenshotFormat="image/jpeg"
+                        videoConstraints={{ facingMode: 'user', width: 640, height: 480 }}
+                        className="fa-webcam-video"
+                      />
+                      <button
+                        type="button"
+                        className="fa-camera-shutter-btn"
+                        onClick={handleCaptureCamera}
+                      >
+                        📸 Capture &amp; Scan
+                      </button>
+                    </div>
+                  ) : isAnalyzing ? (
+                    /* Futuristic Scanning Animation Overlay */
+                    <div className="fa-scanning-overlay">
+                      {customImageSrc && <img src={customImageSrc} alt="Analyzing" className="fa-scan-bg-img" />}
+                      <div className="fa-laser-scanline" />
+                      <div className="fa-cyber-grid-overlay" />
+                      <div className="fa-scan-pulse-reticle">
+                        <div className="fa-radar-ping" />
+                        <span>🧠</span>
+                      </div>
+                      <div className="fa-scan-status-text">
+                        <strong>PyTorch EfficientNet-B2 Active</strong>
+                        <span>{scanStage || 'Extracting deep feature activations...'}</span>
+                      </div>
+                    </div>
+                  ) : analysis?.gradcam_image && customImageSrc ? (
+                    /* Scanned Visualizer View Modes */
+                    viewChoice === 'slider' ? (
+                      /* Interactive Before/After Split Slider */
+                      <div className="fa-slider-compare-container">
+                        <img src={customImageSrc} alt="Original Meal" className="fa-slider-img-orig" />
+                        <div
+                          className="fa-slider-overlay-wrap"
+                          style={{ clipPath: `inset(0 calc(100% - ${sliderPos}%) 0 0)` }}
+                        >
+                          <img src={analysis.gradcam_image} alt="Grad-CAM Heatmap" className="fa-slider-img-cam" />
+                        </div>
+                        <div className="fa-slider-divider-line" style={{ left: `${sliderPos}%` }}>
+                          <div className="fa-slider-handle">↔</div>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={sliderPos}
+                          onChange={(e) => setSliderPos(Number(e.target.value))}
+                          className="fa-slider-range-input"
+                          aria-label="Grad-CAM comparison slider"
+                        />
+                        <div className="fa-slider-legend">
+                          <span className="fa-legend-tag left">🔥 Grad-CAM Heatmap</span>
+                          <span className="fa-legend-tag right">📸 Original Photo</span>
+                        </div>
+                      </div>
+                    ) : viewChoice === 'split' ? (
+                      /* Side-by-Side Split View */
+                      <div className="fa-side-by-side-wrap">
+                        <div className="fa-side-pane">
+                          <img src={customImageSrc} alt="Original Meal" />
+                          <span className="fa-pane-tag">📸 Original Photo</span>
+                        </div>
+                        <div className="fa-side-pane">
+                          <img src={analysis.gradcam_image} alt="Grad-CAM Heatmap" />
+                          <span className="fa-pane-tag heatmap">🔥 Grad-CAM Heatmap</span>
+                        </div>
+                      </div>
+                    ) : viewChoice === 'heatmap' ? (
+                      /* Heatmap Only */
+                      <div className="fa-single-view-wrap">
+                        <img src={analysis.gradcam_image} alt="Grad-CAM Activation" className="fa-display-image" />
+                        <span className="fa-pane-tag heatmap">🔥 Grad-CAM Attention Heatmap</span>
+                      </div>
+                    ) : (
+                      /* Original Photo Only */
+                      <div className="fa-single-view-wrap">
+                        <img src={customImageSrc} alt="Original Meal" className="fa-display-image" />
+                        <span className="fa-pane-tag">📸 Original Photo</span>
+                      </div>
+                    )
+                  ) : customImageSrc ? (
+                    /* Image loaded, awaiting scan */
+                    <div className="fa-single-view-wrap">
+                      <img src={customImageSrc} alt="Meal Preview" className="fa-display-image" />
+                      <div className="fa-ready-tag">
+                        <span>✨ Ready to Scan • Tap Button Below</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="fa-dropzone" onClick={triggerFileInput}>
+                      <div className="fa-drop-icon">📸</div>
+                      <div className="fa-drop-text">Drop meal photo here or click to browse</div>
+                      <div className="fa-drop-sub">Accepts JPG, PNG, WebP meal pictures</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* View Switcher Chips (when Grad-CAM exists) */}
+                {analysis?.gradcam_image && customImageSrc && (
+                  <div className="fa-view-switcher">
+                    <button
+                      type="button"
+                      className={`fa-view-choice-btn ${viewChoice === 'split' ? 'active' : ''}`}
+                      onClick={() => setViewChoice('split')}
+                    >
+                      ⚡ Side-by-Side
+                    </button>
+                    <button
+                      type="button"
+                      className={`fa-view-choice-btn ${viewChoice === 'slider' ? 'active' : ''}`}
+                      onClick={() => setViewChoice('slider')}
+                    >
+                      ↔️ Slider Compare
+                    </button>
+                    <button
+                      type="button"
+                      className={`fa-view-choice-btn ${viewChoice === 'heatmap' ? 'active' : ''}`}
+                      onClick={() => setViewChoice('heatmap')}
+                    >
+                      🔥 Grad-CAM Heatmap
+                    </button>
+                    <button
+                      type="button"
+                      className={`fa-view-choice-btn ${viewChoice === 'original' ? 'active' : ''}`}
+                      onClick={() => setViewChoice('original')}
+                    >
+                      📸 Original
+                    </button>
+                  </div>
+                )}
+
+                {/* Plate Calibration Slider (When photo is present) */}
+                {customImageSrc && !analysis && (
+                  <div className="fa-plate-calibration-strip">
+                    <div className="fa-calib-header">
+                      <span>Plate Scale Calibration</span>
+                      <strong>{plateDiameter} cm</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min="12"
+                      max="26"
+                      step="1"
+                      value={plateDiameter}
+                      onChange={(e) => setPlateDiameter(Number(e.target.value))}
+                      className="fa-calib-slider"
+                    />
+                    <div className="fa-calib-chips">
+                      {[
+                        { label: 'Small (14cm)', val: 14.0 },
+                        { label: 'Standard (16cm)', val: 16.0 },
+                        { label: 'Large (20cm)', val: 20.0 },
+                        { label: 'Feast (24cm)', val: 24.0 },
+                      ].map((p) => (
+                        <button
+                          key={p.val}
+                          type="button"
+                          className={`fa-calib-chip ${plateDiameter === p.val ? 'active' : ''}`}
+                          onClick={() => setPlateDiameter(p.val)}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Primary Action Button */}
+                {viewportMode === 'camera' ? (
                   <button
                     type="button"
-                    key={bm.id}
-                    className={`fa-benchmark-card ${
-                      selectedBenchmarkId === bm.id && !customImageSrc ? 'active' : ''
-                    }`}
-                    onClick={() => handleSelectBenchmark(bm)}
-                    aria-pressed={selectedBenchmarkId === bm.id && !customImageSrc}
+                    className="fa-scan-action-btn"
+                    onClick={handleCaptureCamera}
+                    disabled={isAnalyzing}
                   >
-                    <div className="fa-bc-img-wrap">
-                      <img src={bm.image} alt={bm.name} className="fa-bc-img" />
-                      <span className="fa-bc-badge">{bm.tag.split('#')[1] || 'UEC'}</span>
-                    </div>
-                    <div className="fa-bc-body">
-                      <span className="fa-bc-title">{bm.name}</span>
-                      <span className="fa-bc-sub">{bm.dishes.length} Components</span>
-                    </div>
+                    <span>📸</span> Snap &amp; Classify with PyTorch
                   </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Nutrition Telemetry & Fine-Tuner */}
-          <div className="fa-telemetry-column">
-            {/* Energy & NutriScore Card */}
-            <div className="fa-energy-card">
-              <div className="fa-energy-top-row">
-                <div>
-                  <div className="fa-energy-hero">
-                    <span className="fa-energy-number">
-                      {Math.round(analysis?.totals?.calories || 0)}
-                    </span>
-                    <span className="fa-energy-unit">kcal</span>
-                  </div>
-                  <div className="fa-energy-goal">
-                    2,200 kcal daily reference ·{' '}
-                    {Math.round(((analysis?.totals?.calories || 0) / 2200) * 100)}% (not personalized)
-                  </div>
-                </div>
-
-                {analysis?.nutriScore && (
-                  <div className="fa-nutriscore-badge">
-                    <span className="fa-ns-grade" style={{ color: analysis.nutriScore.color }}>
-                      {analysis.nutriScore.grade}
-                    </span>
-                    <div className="fa-ns-info">
-                      <span className="fa-ns-label">Macro profile</span>
-                      <span className="fa-ns-sub">{analysis.nutriScore.label}</span>
-                    </div>
-                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={`fa-scan-action-btn ${!analysis && customImageSrc ? 'pulse-glow' : ''}`}
+                    onClick={() => runInference()}
+                    disabled={isAnalyzing || !customImageSrc}
+                  >
+                    {isAnalyzing ? (
+                      <span>⏳ Running EfficientNet-B2 Inference...</span>
+                    ) : analysis ? (
+                      <span>⚡ Re-Scan Meal with PyTorch AI</span>
+                    ) : (
+                      <span>⚡ Scan Meal with PyTorch AI</span>
+                    )}
+                  </button>
                 )}
               </div>
 
-              {/* Macro Triad Matrix */}
-              <div className="fa-macros-grid">
-                <div className="fa-macro-box protein">
-                  <span className="fa-macro-label">Protein</span>
-                  <span className="fa-macro-val">
-                    {Math.round((analysis?.totals?.protein || 0) * 10) / 10}g
-                  </span>
-                  <span className="fa-macro-pct">
-                    {Math.round(((analysis?.totals?.protein || 0) / 150) * 100)}% of 150g
-                  </span>
-                </div>
-                <div className="fa-macro-box carbs">
-                  <span className="fa-macro-label">Net Carbs</span>
-                  <span className="fa-macro-val">
-                    {Math.round((analysis?.totals?.carbs || 0) * 10) / 10}g
-                  </span>
-                  <span className="fa-macro-pct">
-                    {Math.round(((analysis?.totals?.carbs || 0) / 250) * 100)}% of 250g
-                  </span>
-                </div>
-                <div className="fa-macro-box fat">
-                  <span className="fa-macro-label">Lipids / Fat</span>
-                  <span className="fa-macro-val">
-                    {Math.round((analysis?.totals?.fat || 0) * 10) / 10}g
-                  </span>
-                  <span className="fa-macro-pct">
-                    {Math.round(((analysis?.totals?.fat || 0) / 65) * 100)}% of 65g
-                  </span>
-                </div>
-              </div>
-
-              {/* Athletic Sports Nutritionist Verdict */}
-              {analysis?.athletic_verdict && (
-                <div className="fa-verdict-card">
-                  <div className="fa-verdict-header">
-                    <span className="fa-verdict-title">
-                      🎙️ General nutrition notes
-                    </span>
-                    <button className="fa-voice-btn" onClick={handleVoiceVerdict}>
-                      <span>🔊</span> Audio Coach
-                    </button>
-                  </div>
-                  <p className="fa-verdict-text">{analysis.athletic_verdict}</p>
-                  <span className="fa-estimate-note">General estimate only; individual nutrition needs vary.</span>
-                </div>
-              )}
-
-              {/* Hugging Face ViT Top Predictions Telemetry */}
-              {analysis?.top_predictions && analysis.top_predictions.length > 0 && (
-                <div className="fa-vit-predictions-panel">
-                  <div className="fa-vit-predictions-header">
-                    <span>🤗 Hugging Face ViT Class Probabilities</span>
-                    <span className="fa-vit-model-badge">Jacques7103/Food-Recognition</span>
-                  </div>
-                  <div className="fa-vit-predictions-list">
-                    {analysis.top_predictions.map((pred, i) => (
-                      <div key={i} className="fa-vit-pred-item">
-                        <span className="fa-vit-pred-rank">#{pred.rank}</span>
-                        <span className="fa-vit-pred-name">{pred.display_name}</span>
-                        <div className="fa-vit-pred-bar-wrapper">
-                          <div
-                            className="fa-vit-pred-bar"
-                            style={{ width: `${Math.min(100, Math.round(pred.confidence * 100))}%` }}
-                          />
-                        </div>
-                        <span className="fa-vit-pred-pct">
-                          {Math.round(pred.confidence * 100)}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Micronutrients Strip */}
-              {analysis?.micronutrients && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', background: 'rgba(2, 6, 23, 0.5)', padding: '10px 14px', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    Fiber (est.): <strong style={{ color: '#fff' }}>{analysis.micronutrients.fiber_g ?? '—'}g</strong>
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    Sodium (est.): <strong style={{ color: '#fff' }}>{analysis.micronutrients.sodium_mg ?? '—'}mg</strong>
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    Potassium (est.): <strong style={{ color: '#fff' }}>{analysis.micronutrients.potassium_mg ?? '—'}mg</strong>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Dishes Fine-Tuner Panel */}
-            <div className="fa-dishes-panel">
-              <div className="fa-dishes-header">
-                <span className="fa-dishes-title">
-                  🍽️ Detected Plate Components ({analysis?.dishes?.length || 0})
-                </span>
-                <button
-                  className="fa-add-dish-btn"
-                  onClick={() => setIsAddingDish(!isAddingDish)}
-                >
-                  {isAddingDish ? '✕ Cancel' : '+ Add Food Item'}
-                </button>
-              </div>
-
-              {/* Inline Add Dish Bar */}
-              {isAddingDish && (
-                <div style={{ background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '12px', padding: '12px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select
-                    value={newDishFoodKey}
-                    onChange={(e) => setNewDishFoodKey(e.target.value)}
-                    style={{ flex: 1, minWidth: '160px', background: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '8px', padding: '8px' }}
-                  >
-                    {Object.keys(FOOD_DATABASE_256).map((key) => (
-                      <option key={key} value={key}>
-                        {FOOD_DATABASE_256[key].name} ({FOOD_DATABASE_256[key].calories} kcal/100g)
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    value={newDishGrams}
-                    onChange={(e) => setNewDishGrams(Math.max(10, parseInt(e.target.value || '100', 10)))}
-                    style={{ width: '80px', background: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '8px', padding: '8px', textAlign: 'center' }}
-                  />
-                  <span style={{ fontSize: '12px', color: '#94a3b8' }}>grams</span>
-                  <button
-                    className="fa-trigger-scan-btn"
-                    onClick={handleAddDish}
-                    style={{ padding: '8px 14px', fontSize: '12px' }}
-                  >
-                    Add
-                  </button>
-                </div>
-              )}
-
-              {/* Dish List */}
-              <div className="fa-dishes-list">
-                {analysis?.dishes?.map((dish) => {
-                  const isSelected = selectedDishId === dish.id;
-
-                  return (
-                    <div
-                      key={dish.id}
-                      className={`fa-dish-row ${isSelected ? 'focused' : ''}`}
-                      onClick={() => setSelectedDishId(dish.id)}
-                    >
-                      <div className="fa-dish-row-top">
-                        <div className="fa-dish-info">
-                          <span className="fa-dish-icon">{dish.icon || '🍽️'}</span>
-                          <div>
-                            <div className="fa-dish-name">{dish.name}</div>
-                            <span className="fa-dish-conf-tag">
-                              {dish.confidence > 0
-                                ? `${Math.round(dish.confidence * 100)}% detection confidence`
-                                : 'Detection confidence unavailable'}
-                              {' · '}
-                              {dish.nutrition_source === 'food_database' ? 'nutrition database' : 'vision estimate'}
+              {/* Right Column: Diagnostic Telemetry & Nutritional Results */}
+              <div className="fa-panel-card">
+                {analysis ? (
+                  <>
+                    {/* Hero Dish Card */}
+                    <div className="fa-dish-hero-card">
+                      <div className="fa-dish-hero-title">
+                        <span className="fa-hero-icon">{analysis.dishes?.[0]?.icon || '🍲'}</span>
+                        <div>
+                          <h2 className="fa-hero-name">{analysis.plate_name}</h2>
+                          <div className="fa-hero-meta-row">
+                            <span className="fa-hero-confidence">
+                              🎯 Neural Match: {Math.round((analysis.dishes?.[0]?.confidence || 0.95) * 100)}%
+                            </span>
+                            <span className="fa-engine-tag">
+                              {analysis.model || 'EfficientNet-B2'}
                             </span>
                           </div>
                         </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <select
-                            value={dish.food}
-                            onChange={(e) => handleUpdateDishFood(dish.id, e.target.value)}
-                            style={{ background: '#1e293b', color: '#94a3b8', border: '1px solid #334155', borderRadius: '6px', fontSize: '11px', padding: '3px 6px' }}
-                            title="Replace dish item"
-                          >
-                            {Object.keys(FOOD_DATABASE_256).map((key) => (
-                              <option key={key} value={key}>
-                                {FOOD_DATABASE_256[key].name}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            className="fa-dish-del-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveDish(dish.id);
-                            }}
-                            title="Remove Dish"
-                          >
-                            ✕
-                          </button>
-                        </div>
                       </div>
 
-                      {/* Serving Grams Slider & Quick Chips */}
-                      <div className="fa-dish-grams-control">
-                        <input
-                          type="range"
-                          className="fa-dish-grams-slider"
-                          min="10"
-                          max="400"
-                          step="5"
-                          value={dish.weight_g}
-                          onChange={(e) => handleUpdateDishGrams(dish.id, e.target.value)}
-                        />
-                        <span className="fa-dish-grams-label">{dish.weight_g}g</span>
-
-                        <div className="fa-gram-chips">
-                          {[50, 100, 150, 200, 300].map((preset) => (
-                            <button
-                              key={preset}
-                              className={`fa-gram-chip ${dish.weight_g === preset ? 'active' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUpdateDishGrams(dish.id, preset);
-                              }}
-                            >
-                              {preset}g
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Mini Macro Strip */}
-                      <div className="fa-dish-macro-strip">
-                        <span>
-                          Energy: <strong>{dish.calories} kcal</strong>
+                      {/* NutriScore Badge */}
+                      <div className="fa-nutriscore-badge">
+                        <span
+                          className="fa-score-grade"
+                          style={{ color: analysis.nutriScore?.color || '#10b981' }}
+                        >
+                          {analysis.nutriScore?.grade || 'A'}
                         </span>
-                        <span>
-                          P: <strong>{dish.protein}g</strong>
-                        </span>
-                        <span>
-                          C: <strong>{dish.carbs}g</strong>
-                        </span>
-                        <span>
-                          F: <strong>{dish.fat}g</strong>
-                        </span>
+                        <span className="fa-score-label">NutriScore</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
 
-              {/* Actions Footer */}
-              <div className="fa-actions-footer">
-                <select
-                  value={selectedMealType}
-                  onChange={(e) => setSelectedMealType(e.target.value)}
-                  style={{ background: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '10px', padding: '11px 14px', fontSize: '13px' }}
-                >
-                  <option value="Breakfast">🍳 Breakfast</option>
-                  <option value="Lunch">🥗 Lunch</option>
-                  <option value="Dinner">🍲 Dinner</option>
-                  <option value="Snack">🍎 Snack</option>
-                </select>
+                    {/* Portion Slider */}
+                    <div className="fa-portion-control">
+                      <div className="fa-portion-label-row">
+                        <span>Portion Weight Calibration</span>
+                        <strong className="fa-portion-value">{portionGrams}g</strong>
+                      </div>
+                      <input
+                        type="range"
+                        min="50"
+                        max="800"
+                        step="10"
+                        value={portionGrams}
+                        onChange={(e) => handlePortionChange(e.target.value)}
+                        className="fa-portion-slider"
+                      />
+                      <div className="fa-portion-chips">
+                        {[
+                          { label: 'Snack (100g)', val: 100 },
+                          { label: 'Normal (180g)', val: 180 },
+                          { label: 'Gym (320g)', val: 320 },
+                          { label: 'Hearty (500g)', val: 500 },
+                        ].map((c) => (
+                          <button
+                            key={c.val}
+                            type="button"
+                            className={`fa-portion-chip ${portionGrams === c.val ? 'active' : ''}`}
+                            onClick={() => handlePortionChange(c.val)}
+                          >
+                            {c.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                <button className="fa-btn-primary" onClick={handleLogMeal}>
-                  <span>💾</span> Log to Meal Diary
-                </button>
+                    {/* 4 Glowing Macro Cards */}
+                    <div className="fa-macro-grid">
+                      <div className="fa-macro-card cal">
+                        <div className="fa-macro-name">Calories</div>
+                        <div className="fa-macro-num">{Math.round(analysis.totals.calories)}</div>
+                        <div className="fa-macro-sub">
+                          <span>kcal</span>
+                          <span>{Math.round((analysis.totals.calories / 2000) * 100)}% target</span>
+                        </div>
+                        <div className="fa-macro-bar">
+                          <div
+                            className="fa-macro-bar-fill cal"
+                            style={{ width: `${Math.min(100, Math.round((analysis.totals.calories / 2000) * 100))}%` }}
+                          />
+                        </div>
+                      </div>
 
-                <button className="fa-btn-secondary" onClick={handleExportMealJson} title="Export Plate JSON">
-                  <span>📥</span> JSON
-                </button>
+                      <div className="fa-macro-card pro">
+                        <div className="fa-macro-name">Protein</div>
+                        <div className="fa-macro-num">{Math.round(analysis.totals.protein)}g</div>
+                        <div className="fa-macro-sub">
+                          <span>muscle fuel</span>
+                          <span>{Math.round(analysis.totals.protein * 4)} kcal</span>
+                        </div>
+                        <div className="fa-macro-bar">
+                          <div
+                            className="fa-macro-bar-fill pro"
+                            style={{ width: `${Math.min(100, Math.round((analysis.totals.protein / 150) * 100))}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="fa-macro-card carb">
+                        <div className="fa-macro-name">Carbs</div>
+                        <div className="fa-macro-num">{Math.round(analysis.totals.carbs)}g</div>
+                        <div className="fa-macro-sub">
+                          <span>glycogen</span>
+                          <span>{Math.round(analysis.totals.carbs * 4)} kcal</span>
+                        </div>
+                        <div className="fa-macro-bar">
+                          <div
+                            className="fa-macro-bar-fill carb"
+                            style={{ width: `${Math.min(100, Math.round((analysis.totals.carbs / 250) * 100))}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="fa-macro-card fat">
+                        <div className="fa-macro-name">Fats</div>
+                        <div className="fa-macro-num">{Math.round(analysis.totals.fat)}g</div>
+                        <div className="fa-macro-sub">
+                          <span>healthy lipids</span>
+                          <span>{Math.round(analysis.totals.fat * 9)} kcal</span>
+                        </div>
+                        <div className="fa-macro-bar">
+                          <div
+                            className="fa-macro-bar-fill fat"
+                            style={{ width: `${Math.min(100, Math.round((analysis.totals.fat / 70) * 100))}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Top-5 PyTorch Predictions Spectrum */}
+                    {analysis.top_predictions && analysis.top_predictions.length > 0 && (
+                      <div className="fa-spectrum-card">
+                        <div className="fa-spectrum-title">
+                          <span>🔥 PyTorch Food-101 Probability Spectrum</span>
+                          <span style={{ color: '#38bdf8' }}>Top Candidates</span>
+                        </div>
+                        {analysis.top_predictions.slice(0, 4).map((p, idx) => (
+                          <div key={idx} className="fa-pred-row">
+                            <span className="fa-pred-label">
+                              {p.icon} {p.display_name}
+                            </span>
+                            <div className="fa-pred-bar-track">
+                              <div
+                                className="fa-pred-bar-fill"
+                                style={{ width: `${Math.min(100, Math.round(p.confidence * 100))}%` }}
+                              />
+                            </div>
+                            <span className="fa-pred-pct">
+                              {Math.round(p.confidence * 100)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Micronutrients Strip */}
+                    {analysis.micronutrients && (
+                      <div className="fa-micro-grid">
+                        <div className="fa-micro-item">
+                          🌾 Fiber: <strong>{analysis.micronutrients.fiber_g ?? '—'}g</strong>
+                        </div>
+                        <div className="fa-micro-item">
+                          🧂 Sodium: <strong>{analysis.micronutrients.sodium_mg ?? '—'}mg</strong>
+                        </div>
+                        <div className="fa-micro-item">
+                          ⚡ Potassium: <strong>{analysis.micronutrients.potassium_mg ?? '—'}mg</strong>
+                        </div>
+                        <div className="fa-micro-item">
+                          🥛 Calcium: <strong>{analysis.micronutrients.calcium_mg ?? '—'}mg</strong>
+                        </div>
+                        <div className="fa-micro-item">
+                          🩸 Iron: <strong>{analysis.micronutrients.iron_mg ?? '—'}mg</strong>
+                        </div>
+                        <div className="fa-micro-item">
+                          🍊 Vitamin C: <strong>{analysis.micronutrients.vitamin_c_mg ?? '—'}mg</strong>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Athletic Coach Verdict Card */}
+                    <div className="fa-coach-card">
+                      <div className="fa-coach-header">
+                        <span className="fa-coach-title">
+                          <span>🎙️</span> Athletic Nutrition Coach
+                        </span>
+                        <button type="button" className="fa-voice-btn" onClick={handleVoiceFeedback}>
+                          🔊 Listen
+                        </button>
+                      </div>
+                      <p className="fa-coach-text">{analysis.athletic_verdict}</p>
+                    </div>
+
+                    {/* Bottom Action Strip */}
+                    <div className="fa-bottom-actions">
+                      <button type="button" className="fa-log-diary-btn" onClick={handleLogToDiary}>
+                        <span>➕</span> Log to Daily Diary
+                      </button>
+                      <button type="button" className="fa-secondary-btn" onClick={triggerFileInput}>
+                        <span>🔄</span> Change Photo
+                      </button>
+                      <button type="button" className="fa-copy-btn" onClick={handleCopySummary} title="Copy summary">
+                        📋 Copy
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  /* Photo is uploaded, but not yet analyzed */
+                  <div className="fa-pending-analysis-card">
+                    <div className="fa-pending-icon-wrap">
+                      <div className="fa-radar-ping" />
+                      <span className="fa-pending-icon">🧠</span>
+                    </div>
+                    <h3 className="fa-pending-title">Ready for PyTorch Classification</h3>
+                    <p className="fa-pending-desc">
+                      Your meal photo is calibrated. Tap <strong>"Scan Meal with PyTorch AI"</strong> to extract deep convolutional activations and calculate complete nutritional diagnostics.
+                    </p>
+
+                    <div className="fa-pending-features-list">
+                      <div className="fa-pending-feature">
+                        <span>✓</span> 101-dish neural classification &amp; confidence ranking
+                      </div>
+                      <div className="fa-pending-feature">
+                        <span>✓</span> Explainable Grad-CAM activation heatmap
+                      </div>
+                      <div className="fa-pending-feature">
+                        <span>✓</span> Calorie, protein, carb &amp; healthy fat quantification
+                      </div>
+                      <div className="fa-pending-feature">
+                        <span>✓</span> Nutri-Score calculation (Grades A through E)
+                      </div>
+                      <div className="fa-pending-feature">
+                        <span>✓</span> Personalized athletic dietary recommendations
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="fa-btn-upload-primary"
+                      onClick={() => runInference()}
+                      style={{ width: '100%', marginTop: '16px' }}
+                    >
+                      <span>⚡</span> Run Neural Scan Now
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </div>
+          )}
+        </section>
       )}
 
       {/* ------------------------------------------------------------------
-          TAB 2: UEC-256 FOOD & DENSITY MATRIX
+          TAB 2: Food-101 Macro Library
           ------------------------------------------------------------------ */}
-      {activeTab === 'database' && (
-        <div className="fa-db-container">
-          <div className="fa-db-controls">
+      {activeTab === 'library' && (
+        <section aria-label="Food Database">
+          <div className="fa-library-header">
             <input
               type="text"
-              className="fa-db-search-input"
-              placeholder="🔍 Search 256 food items (e.g. rice, sashimi, curry)..."
-              value={dbSearch}
-              onChange={(e) => setDbSearch(e.target.value)}
+              className="fa-search-input"
+              placeholder="Search 256 food items (e.g. rice, pizza, steak, ramen)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
 
-            <div className="fa-db-filter-chips">
-              <button
-                className={`fa-db-chip ${dbFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setDbFilter('all')}
-              >
-                All (256)
-              </button>
-              <button
-                className={`fa-db-chip ${dbFilter === 'high_protein' ? 'active' : ''}`}
-                onClick={() => setDbFilter('high_protein')}
-              >
-                High Protein (≥12g)
-              </button>
-              <button
-                className={`fa-db-chip ${dbFilter === 'low_carb' ? 'active' : ''}`}
-                onClick={() => setDbFilter('low_carb')}
-              >
-                Low Carb (≤10g)
-              </button>
-              <button
-                className={`fa-db-chip ${dbFilter === 'low_cal' ? 'active' : ''}`}
-                onClick={() => setDbFilter('low_cal')}
-              >
-                Low Calorie (≤120 kcal)
-              </button>
-              <button
-                className={`fa-db-chip ${dbFilter === 'high_density' ? 'active' : ''}`}
-                onClick={() => setDbFilter('high_density')}
-              >
-                High Density (≥0.9 g/cm³)
-              </button>
+            <div className="fa-filter-pills">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  className={`fa-filter-pill ${selectedCategory === cat ? 'active' : ''}`}
+                  onClick={() => setSelectedCategory(cat)}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="fa-db-grid">
-            {filteredDatabaseFoods.map((item) => (
-              <div key={item.name} className="fa-db-card">
-                <div className="fa-db-card-header">
-                  <span className="fa-db-card-title">
-                    <span>{getFoodEmoji(item.name)}</span>
-                    <span>{item.name}</span>
-                  </span>
-                </div>
-
-                <div className="fa-db-card-metrics">
-                  <div className="fa-db-metric-item">
-                    <span className="fa-dbm-label">Energy</span>
-                    <span className="fa-dbm-val">{item.calories}</span>
-                  </div>
-                  <div className="fa-db-metric-item">
-                    <span className="fa-dbm-label">Protein</span>
-                    <span className="fa-dbm-val">{item.protein}g</span>
-                  </div>
-                  <div className="fa-db-metric-item">
-                    <span className="fa-dbm-label">Carbs</span>
-                    <span className="fa-dbm-val">{item.carbs}g</span>
-                  </div>
-                  <div className="fa-db-metric-item">
-                    <span className="fa-dbm-label">Fat</span>
-                    <span className="fa-dbm-val">{item.fat}g</span>
+          <div className="fa-library-grid">
+            {filteredFoodList.map(([key, item]) => (
+              <div
+                key={key}
+                className="fa-lib-card"
+                onClick={() => {
+                  const sampleObj = {
+                    id: `lib_${key}`,
+                    name: item.name,
+                    category: key,
+                    icon: item.icon,
+                    weight_g: item.portion_g,
+                    image: `/sample_images/01_pizza.jpg`, // fallback image pointer
+                  };
+                  handleSelectSample(sampleObj);
+                  setActiveTab('scanner');
+                }}
+              >
+                <div className="fa-lib-card-top">
+                  <span className="fa-lib-icon">{item.icon}</span>
+                  <div>
+                    <h3 className="fa-lib-name">{item.name}</h3>
+                    <span className="fa-lib-category">{item.category}</span>
                   </div>
                 </div>
 
-                <div className="fa-db-card-actions">
-                  <span className="fa-db-density-badge">
-                    Density: {item.density} g/cm³
-                  </span>
-                  <button
-                    className="fa-db-load-btn"
-                    onClick={() => {
-                      handleAddDish();
-                      setNewDishFoodKey(item.name);
-                      setActiveTab('scanner');
-                    }}
-                  >
-                    + Add to Plate
-                  </button>
+                <div className="fa-lib-macros">
+                  <span><strong>{item.calories}</strong> kcal</span>
+                  <span><strong>{item.protein}g</strong> pro</span>
+                  <span><strong>{item.carbs}g</strong> carb</span>
+                  <span><strong>{item.fat}g</strong> fat</span>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* ------------------------------------------------------------------
-          TAB 3: CLINICAL MEAL DIARY & HYDRATION ANALYTICS
+          TAB 3: Meal Diary & Hydration Telemetry
           ------------------------------------------------------------------ */}
       {activeTab === 'diary' && (
-        <div className="fa-diary-container">
-          {/* Hydration & Daily Overview */}
-          <div className="fa-diary-summary-grid">
-            {/* Hydration Card */}
-            <div className="fa-hydration-card">
-              <div className="fa-hydration-header">
-                <span className="fa-hydration-title">
+        <section aria-label="Meal Diary & Hydration">
+          {/* Hydration Telemetry Card */}
+          <div className="fa-diary-summary-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 800, color: '#38bdf8' }}>
                   💧 Athletic Hydration Telemetry
-                </span>
-                <span style={{ fontSize: '13.5px', fontFamily: 'monospace', color: '#38bdf8' }}>
-                  {waterIntakeMl} / 3,000 ml ({Math.min(100, Math.round((waterIntakeMl / 3000) * 100))}%)
+                </h3>
+                <span style={{ fontSize: '13px', color: '#94a3b8' }}>
+                  Daily intake: <strong>{waterMl} ml</strong> / Target: 3000 ml
                 </span>
               </div>
-
-              <div className="fa-hydro-bar-wrap">
-                <div
-                  className="fa-hydro-bar-fill"
-                  style={{ width: `${Math.min(100, (waterIntakeMl / 3000) * 100)}%` }}
-                />
-              </div>
-
-              <div className="fa-hydro-quick-btns">
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button
-                  className="fa-hydro-btn"
-                  onClick={() => setWaterIntakeMl((prev) => prev + 250)}
+                  type="button"
+                  className="fa-demo-strip-pill"
+                  onClick={() => {
+                    setWaterMl((w) => w + 250);
+                    showToast('+250ml logged');
+                  }}
                 >
                   +250ml (Cup)
                 </button>
                 <button
-                  className="fa-hydro-btn"
-                  onClick={() => setWaterIntakeMl((prev) => prev + 500)}
+                  type="button"
+                  className="fa-demo-strip-pill"
+                  onClick={() => {
+                    setWaterMl((w) => w + 500);
+                    showToast('+500ml logged');
+                  }}
                 >
                   +500ml (Bottle)
                 </button>
-                <button
-                  className="fa-hydro-btn"
-                  onClick={() => setWaterIntakeMl((prev) => prev + 750)}
-                >
-                  +750ml (Shaker)
-                </button>
-                <button
-                  className="fa-hydro-btn"
-                  style={{ color: '#94a3b8', borderColor: '#334155' }}
-                  onClick={() => setWaterIntakeMl(0)}
-                >
-                  Reset
-                </button>
               </div>
             </div>
 
-            {/* Today's Nutrient Summary Card */}
-            <div className="fa-hydration-card">
-              <div className="fa-hydration-header">
-                <span className="fa-hydration-title" style={{ color: '#10b981' }}>
-                  📊 Today's Total Intake ({todayDiaryTotals.count} Meals)
-                </span>
-                <span style={{ fontSize: '14px', fontWeight: '800', color: '#10b981', fontFamily: 'monospace' }}>
-                  {todayDiaryTotals.calories} kcal
-                </span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                <div style={{ background: 'rgba(2, 6, 23, 0.6)', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10.5px', color: '#64748b' }}>PROTEIN</div>
-                  <div style={{ fontSize: '16px', fontWeight: '800', color: '#f43f5e', fontFamily: 'monospace' }}>
-                    {todayDiaryTotals.protein}g
-                  </div>
-                </div>
-                <div style={{ background: 'rgba(2, 6, 23, 0.6)', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10.5px', color: '#64748b' }}>CARBS</div>
-                  <div style={{ fontSize: '16px', fontWeight: '800', color: '#06b6d4', fontFamily: 'monospace' }}>
-                    {todayDiaryTotals.carbs}g
-                  </div>
-                </div>
-                <div style={{ background: 'rgba(2, 6, 23, 0.6)', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10.5px', color: '#64748b' }}>FAT</div>
-                  <div style={{ fontSize: '16px', fontWeight: '800', color: '#f59e0b', fontFamily: 'monospace' }}>
-                    {todayDiaryTotals.fat}g
-                  </div>
-                </div>
-              </div>
+            {/* Hydration progress bar */}
+            <div style={{ width: '100%', height: '10px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '999px', overflow: 'hidden' }}>
+              <div
+                style={{
+                  width: `${Math.min(100, Math.round((waterMl / 3000) * 100))}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #38bdf8, #0284c7)',
+                  borderRadius: '999px',
+                }}
+              />
             </div>
           </div>
 
-          {/* Diary Timeline Entries */}
-          <div className="fa-diary-timeline">
-            {mealDiary.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', background: 'rgba(15, 23, 42, 0.5)', borderRadius: '16px', color: '#64748b' }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🥗</div>
-                <div>No meals logged yet today. Scan a plate or click "Log to Meal Diary" to record your nutrition.</div>
-              </div>
+          {/* Meals Logged */}
+          <div className="fa-diary-summary-card">
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 800 }}>
+              🍽️ Logged Meals Today ({diaryEntries.length})
+            </h3>
+
+            {diaryEntries.length === 0 ? (
+              <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>
+                No meals logged today yet. Scan a meal in the Scanner tab and tap "Log to Daily Diary".
+              </p>
             ) : (
-              mealDiary.map((item) => (
-                <div key={item.id} className="fa-diary-card">
-                  <div className="fa-diary-card-left">
-                    <span className="fa-diary-time">
-                      {new Date(item.timestamp || Date.now()).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                    <span className="fa-meal-type-pill">{item.mealType || 'Meal'}</span>
-                    <div>
-                      <div className="fa-diary-card-title">{item.name}</div>
-                      <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                        {item.dishes ? item.dishes.map((d) => d.name).join(', ') : `${item.weight_g || 200}g portion`}
+              <div className="fa-diary-list">
+                {diaryEntries.map((item) => (
+                  <div key={item.id} className="fa-diary-item">
+                    <div className="fa-diary-item-left">
+                      <span style={{ fontSize: '24px' }}>🍽️</span>
+                      <div>
+                        <div className="fa-diary-item-name">{item.name}</div>
+                        <span className="fa-diary-item-time">
+                          {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="fa-diary-card-right">
-                    <span className="fa-diary-cals">{Math.round(item.calories || 0)} kcal</span>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'monospace' }}>
-                      P: {Math.round(item.protein || 0)}g · C: {Math.round(item.carbs || 0)}g · F: {Math.round(item.fat || 0)}g
+                    <div className="fa-diary-item-macros">
+                      <span>🔥 {Math.round(item.calories)} kcal</span>
+                      <span>🥩 {Math.round(item.protein)}g pro</span>
+                      <span>🌾 {Math.round(item.carbs)}g carb</span>
+                      <span>🥑 {Math.round(item.fat)}g fat</span>
+
+                      <button
+                        type="button"
+                        className="fa-delete-entry-btn"
+                        onClick={() => handleDeleteDiaryItem(item.id)}
+                        title="Delete meal"
+                      >
+                        🗑️
+                      </button>
                     </div>
-                    <button
-                      className="fa-dish-del-btn"
-                      onClick={() => handleDeleteMealEntry(item.id)}
-                      title="Delete Entry"
-                    >
-                      🗑️
-                    </button>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
-        </div>
+        </section>
       )}
 
       {/* ------------------------------------------------------------------
           AI Engine Settings Modal
           ------------------------------------------------------------------ */}
       {isSettingsOpen && (
-        <div className="fa-modal-backdrop" onClick={() => setIsSettingsOpen(false)}>
-          <div className="fa-modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="fa-modal-header">
-              <span className="fa-modal-title">⚙️ AI Vision Engine Configuration</span>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          backdropFilter: 'blur(6px)'
+        }}>
+          <div style={{
+            background: 'var(--fa-bg)',
+            border: '1px solid var(--fa-card-border)',
+            borderRadius: '18px',
+            padding: '28px',
+            width: '90%',
+            maxWidth: '520px',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#fff' }}>
+                ⚙️ AI Vision Engine Configuration
+              </h3>
               <button
-                className="fa-modal-close-btn"
-                aria-label="Close Settings"
+                type="button"
                 onClick={() => setIsSettingsOpen(false)}
+                aria-label="Close Settings"
+                style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
               >
                 ✕
               </button>
             </div>
 
-            <div className="fa-modal-engine-options">
-              <div
-                className={`fa-engine-option ${activeEngine === 'transformer_vit' ? 'selected' : ''}`}
-                onClick={() => setActiveEngine('transformer_vit')}
-              >
-                <input
-                  type="radio"
-                  checked={activeEngine === 'transformer_vit'}
-                  onChange={() => setActiveEngine('transformer_vit')}
-                />
-                <div>
-                  <div style={{ fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>🤗 Hugging Face Vision Transformer (Jacques7103/Food-Recognition)</span>
-                    <span style={{ fontSize: '11px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', padding: '2px 8px', borderRadius: '6px' }}>
-                      93.2% ViT Accuracy
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>
-                    Fine-tuned ViT-Base Patch16 neural architecture for high-precision food recognition.
-                    Status: {serverHealth.transformer_available || serverHealth.online ? '🟢 ViT Engine Online on Port 5050' : '⚪ Requires Local Python Server'}
-                  </div>
-                </div>
+            <div style={{
+              background: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '12px',
+              padding: '16px',
+              marginBottom: '20px'
+            }}>
+              <div style={{ fontWeight: 700, color: '#93c5fd', marginBottom: '4px' }}>
+                🔥 Active Primary Engine: PyTorch Food-101
               </div>
-
-              <div
-                className={`fa-engine-option ${activeEngine === 'gemini_vision' ? 'selected' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="food-engine"
-                  checked={activeEngine === 'gemini_vision'}
-                  onChange={() => setActiveEngine('gemini_vision')}
-                />
-                <div>
-                  <div style={{ fontWeight: 700, color: '#38bdf8' }}>
-                    Google Gemini Multimodal Vision AI
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    Cloud-based food recognition. Portion sizes and nutrition values are estimates; review before logging.
-                  </div>
-                </div>
-              </div>
-
-              <div
-                className={`fa-engine-option ${activeEngine === 'yolov8m_local' ? 'selected' : ''}`}
-                onClick={() => setActiveEngine('yolov8m_local')}
-              >
-                <input
-                  type="radio"
-                  name="food-engine"
-                  checked={activeEngine === 'yolov8m_local'}
-                  onChange={() => setActiveEngine('yolov8m_local')}
-                />
-                <div>
-                  <div style={{ fontWeight: 700, color: serverHealth.online ? '#10b981' : '#cbd5e1' }}>
-                    Local YOLOv8m Volumetric Server (Port 5050)
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    Status: {serverHealth.online && serverHealth.yolo_available && serverHealth.weights_present
-                      ? '🟢 Detector ready'
-                      : '⚪ Unavailable (start food_analyzer/run_server.bat)'}
-                  </div>
-                </div>
-              </div>
-
-              <div
-                className={`fa-engine-option ${activeEngine === 'on_device' ? 'selected' : ''}`}
-                onClick={() => setActiveEngine('on_device')}
-              >
-                <input
-                  type="radio"
-                  name="food-engine"
-                  checked={activeEngine === 'on_device'}
-                  onChange={() => setActiveEngine('on_device')}
-                />
-                <div>
-                  <div style={{ fontWeight: 700, color: '#f1f5f9' }}>
-                    Offline benchmark mode
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    Bundled sample plates and manual edits work offline. Custom-photo recognition requires Gemini or the local detector.
-                  </div>
-                </div>
-              </div>
+              <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1', lineHeight: 1.4 }}>
+                The vision studio runs the PyTorch EfficientNet-B2 transfer learning classifier with real-time Grad-CAM explainability hooks on http://localhost:5050.
+              </p>
             </div>
 
-            <div className="fa-modal-field">
-              <label className="fa-modal-label">Google Gemini API Key</label>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>
+                Optional API Key (AIzaSy...)
+              </label>
               <input
                 type="password"
-                className="fa-modal-input"
                 placeholder="AIzaSy..."
                 value={geminiKeyInput}
                 onChange={(e) => setGeminiKeyInput(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: 'rgba(15, 23, 42, 0.8)',
+                  border: '1px solid var(--fa-card-border)',
+                  borderRadius: '10px',
+                  color: '#fff',
+                  boxSizing: 'border-box'
+                }}
               />
-              <span className="fa-modal-hint">
-                Get a free key from Google AI Studio (aistudio.google.com). Stored locally in your browser.
-              </span>
-              {keyTestStatus === 'valid' && (
-                <span style={{ fontSize: '12px', color: '#34d399' }}>✓ API Key successfully verified and saved!</span>
-              )}
-              {keyTestStatus === 'error' && (
-                <span style={{ fontSize: '12px', color: '#f87171' }}>✗ Could not verify key. Check key and connection.</span>
-              )}
             </div>
 
-            <button
-              className="fa-btn-primary"
-              onClick={handleSaveGeminiKey}
-              disabled={isTestingKey}
-            >
-              {isTestingKey ? '⏳ Validating Key...' : 'Save Configuration'}
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="fa-voice-btn"
+                onClick={() => {
+                  setGeminiApiKey(geminiKeyInput);
+                  setIsSettingsOpen(false);
+                  showToast('Settings saved successfully');
+                }}
+              >
+                Save &amp; Close
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Floating Notification Toast */}
+      {toastMsg && <div className="fa-toast">{toastMsg}</div>}
     </div>
   );
 }

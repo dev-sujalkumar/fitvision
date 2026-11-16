@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { YOGA_POSES } from '../../utils/yogaPoseLibrary';
 import { EXERCISE_PATTERNS } from '../../utils/gymExercises';
-import { BENCHMARK_MEALS } from '../../utils/foodNutrition256';
+import { SAMPLE_PLATES } from '../../utils/food101Data';
 import './CommandPalette.css';
 
 export default function CommandPalette({ isOpen, onClose }) {
@@ -53,14 +53,14 @@ export default function CommandPalette({ isOpen, onClose }) {
       badge: `${e.caloriesPerRep} kcal/rep`,
     })),
 
-    // UEC-256 Benchmark Plates
-    ...BENCHMARK_MEALS.map(b => ({
-      id: `food-benchmark-${b.id}`,
+    // PyTorch Food-101 Demonstration Plates
+    ...SAMPLE_PLATES.map(b => ({
+      id: `food-sample-${b.id}`,
       title: `${b.name} (${b.tag})`,
-      category: 'Nutrition Benchmark',
-      icon: '🍱',
+      category: 'Food-101 Plate',
+      icon: b.icon || '🍱',
       path: '/food-analyzer',
-      badge: `${b.dishes.length} dishes`,
+      badge: `${b.weight_g}g`,
     })),
   ];
 

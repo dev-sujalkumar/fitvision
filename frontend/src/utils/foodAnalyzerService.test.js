@@ -10,7 +10,7 @@ import {
   getGeminiApiKey,
   setGeminiApiKey,
 } from './foodAnalyzerService';
-import { calculateFoodNutrition } from './foodNutrition256';
+import { calculateFoodNutrition } from './food101Data';
 
 describe('foodAnalyzerService', () => {
   beforeEach(() => {

@@ -82,4 +82,44 @@ describe('FoodAnalyzer Component', () => {
     fireEvent.click(closeBtn);
     expect(screen.queryByText(/AI Vision Engine Configuration/i)).not.toBeInTheDocument();
   });
+
+  test('starts in a clean empty state with upload dropzone and no default meal loaded', async () => {
+    await act(async () => {
+      render(<FoodAnalyzer />);
+    });
+    expect(screen.getByText(/Upload Your Meal Photo/i)).toBeInTheDocument();
+    expect(screen.getByText(/Select Photo from Device/i)).toBeInTheDocument();
+    expect(screen.getByText(/Open Live Webcam/i)).toBeInTheDocument();
+    expect(screen.getByText(/101 Food Classes/i)).toBeInTheDocument();
+    // Default meal pizza heading should NOT be in the document
+    expect(screen.queryByRole('heading', { name: /Artisan Stone-Baked Pizza/i })).not.toBeInTheDocument();
+  });
+
+  test('loading a sample plate transitions to active workspace with Change Photo button and clears back to empty', async () => {
+    await act(async () => {
+      render(<FoodAnalyzer />);
+    });
+
+    // Find and click the demo pizza pill by text
+    const pizzaDemoBtn = screen.getByText('Artisan Stone-Baked Pizza');
+    expect(pizzaDemoBtn).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(pizzaDemoBtn);
+    });
+
+    // Should now be in active workspace with analyzed dish
+    expect(screen.getByRole('heading', { name: /Artisan Stone-Baked Pizza/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Change Photo/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Portion Weight Calibration/i)).toBeInTheDocument();
+
+    // Clicking Clear button should reset back to empty hero canvas
+    const clearBtn = screen.getByRole('button', { name: /Clear/i });
+    await act(async () => {
+      fireEvent.click(clearBtn);
+    });
+
+    expect(screen.getByText(/Upload Your Meal Photo/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Artisan Stone-Baked Pizza/i })).not.toBeInTheDocument();
+  });
 });

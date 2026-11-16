@@ -1,6 +1,52 @@
-# Python bytecode
+# Python & Environment
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
 
-# Jupyter-generated checkpoints
+# Model Checkpoints & Large Data
+*.pt
+*.pth
+*.hdf5
+*.tflite
+food_classifier/data/
+food_classifier/checkpoints/*.pt
+!food_classifier/checkpoints/.gitkeep
+
+# Jupyter Notebooks
 .ipynb_checkpoints/
+
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+frontend/build/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
