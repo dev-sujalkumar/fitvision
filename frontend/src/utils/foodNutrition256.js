@@ -2302,3 +2302,6 @@ export const calculateNutriScore = (calories, protein, carbs, fat) => {
     return { grade: 'D', label: 'High Caloric Density', color: '#ef4444' };
   }
 };
+
+// Alias for backward compatibility
+export const BENCHMARK_MEAL_PLATES = BENCHMARK_MEALS;

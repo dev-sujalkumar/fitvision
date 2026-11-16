@@ -754,8 +754,8 @@ const Nutrition = () => {
             <p>
               1. <strong>YOLOv8m 640px:</strong> Detects food classes and bounding coordinates from UECFOOD-256.<br />
               2. <strong>MiDaS Monocular Depth:</strong> Generates pixel-wise 3D depth maps normalized to 16cm plate reference.<br />
-              3. <strong>Voxel Volume Integration:</strong> $V = \sum_{\text{mask}} \Delta x \Delta y \cdot \text{depth}(x,y)$.<br />
-              4. <strong>Physical Density Calibration:</strong> $M = V \times \rho_{\text{food}}$ mapped to USDA macronutrient standards.
+              3. <strong>Voxel Volume Integration:</strong> {"V = \u03A3(mask) \u0394x \u0394y \u00B7 depth(x,y)"}.<br />
+              4. <strong>Physical Density Calibration:</strong> {"M = V \u00D7 \u03C1(food)"} mapped to USDA macronutrient standards.
             </p>
           </div>
         </div>
