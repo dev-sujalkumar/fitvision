@@ -7,6 +7,7 @@ import {
 import {
   checkServerHealth,
   analyzeWithLocalServer,
+  classifyWithTransformer,
   scanWithGeminiVision,
   analyzeOnDeviceFallback,
   loadBenchmarkPlate,
@@ -27,7 +28,7 @@ export default function FoodAnalyzer() {
   const [viewportMode, setViewportMode] = useState('benchmarks'); // 'camera' | 'upload' | 'benchmarks'
 
   // Engine Configuration & Settings
-  const [activeEngine, setActiveEngine] = useState('gemini_vision'); // 'gemini_vision' | 'yolov8m_local' | 'on_device'
+  const [activeEngine, setActiveEngine] = useState('transformer_vit'); // 'transformer_vit' | 'gemini_vision' | 'yolov8m_local' | 'on_device'
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [geminiKeyInput, setGeminiKeyInput] = useState('');
   const [serverHealth, setServerHealth] = useState({ online: false });
@@ -73,9 +74,6 @@ export default function FoodAnalyzer() {
   useEffect(() => {
     const existingKey = getGeminiApiKey();
     setGeminiKeyInput(existingKey);
-    if (!existingKey) {
-      setActiveEngine('on_device');
-    }
 
     // Load initial benchmark plate
     const initialPlate = loadBenchmarkPlate('meal_12082', 16.0);
@@ -84,14 +82,43 @@ export default function FoodAnalyzer() {
     // Check server health
     checkServerHealth().then((health) => {
       setServerHealth(health);
-      if (health.online && !existingKey) {
-        setActiveEngine('yolov8m_local');
+      if (health.online) {
+        setActiveEngine('transformer_vit');
+      } else if (existingKey) {
+        setActiveEngine('gemini_vision');
+      } else {
+        setActiveEngine('on_device');
       }
     });
 
     // Load diary entries
     loadDiaryEntries();
   }, []);
+
+  // Deep link support for URL search parameters (?tab=diary, ?benchmark=12082, etc.)
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined' || !window.location || !window.location.search) return;
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam && ['scanner', 'database', 'diary'].includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+      const benchParam = params.get('benchmark');
+      if (benchParam) {
+        const plateId = benchParam.startsWith('meal_') ? benchParam : `meal_${benchParam}`;
+        setSelectedBenchmarkId(plateId);
+        const plate = loadBenchmarkPlate(plateId, plateDiameter);
+        if (plate) {
+          setAnalysis(plate);
+          setCustomImageSrc(null);
+          setViewportMode('benchmarks');
+        }
+      }
+    } catch (e) {
+      console.warn('URL param parse error:', e);
+    }
+  }, [plateDiameter]);
 
   // Sync water intake to localStorage
   useEffect(() => {
@@ -204,7 +231,9 @@ export default function FoodAnalyzer() {
 
     try {
       let result;
-      if (activeEngine === 'gemini_vision') {
+      if (activeEngine === 'transformer_vit') {
+        result = await classifyWithTransformer(imageSrc, 'Jacques7103/Food-Recognition', plateDiameter);
+      } else if (activeEngine === 'gemini_vision') {
         const key = getGeminiApiKey();
         if (!key) {
           setIsSettingsOpen(true);
@@ -423,14 +452,18 @@ export default function FoodAnalyzer() {
           >
             <span
               className={`fa-engine-status-dot ${
-                activeEngine === 'gemini_vision'
+                activeEngine === 'transformer_vit'
+                  ? 'vit'
+                  : activeEngine === 'gemini_vision'
                   ? 'cloud'
                   : serverHealth.online
                   ? 'online'
                   : 'offline'
               }`}
             />
-            {activeEngine === 'gemini_vision'
+            {activeEngine === 'transformer_vit'
+              ? '🤗 ViT Food Transformer'
+              : activeEngine === 'gemini_vision'
               ? '⚡ Gemini Vision AI'
               : activeEngine === 'yolov8m_local'
               ? serverHealth.online
@@ -520,6 +553,38 @@ export default function FoodAnalyzer() {
                     }}
                   >
                     📁 Upload Image
+                  </button>
+                </div>
+
+                {/* Quick Engine Switcher */}
+                <div className="fa-engine-selector-mini" role="radiogroup" aria-label="Active AI Engine">
+                  <button
+                    className={`fa-engine-choice-btn ${activeEngine === 'transformer_vit' ? 'active vit' : ''}`}
+                    onClick={() => setActiveEngine('transformer_vit')}
+                    title="Hugging Face Vision Transformer (Jacques7103/Food-Recognition)"
+                  >
+                    🤗 ViT Transformer
+                  </button>
+                  <button
+                    className={`fa-engine-choice-btn ${activeEngine === 'gemini_vision' ? 'active gemini' : ''}`}
+                    onClick={() => setActiveEngine('gemini_vision')}
+                    title="Google Gemini Vision AI"
+                  >
+                    ⚡ Gemini
+                  </button>
+                  <button
+                    className={`fa-engine-choice-btn ${activeEngine === 'yolov8m_local' ? 'active yolo' : ''}`}
+                    onClick={() => setActiveEngine('yolov8m_local')}
+                    title="Local YOLOv8m Volumetric Server (Port 5050)"
+                  >
+                    🟢 YOLO
+                  </button>
+                  <button
+                    className={`fa-engine-choice-btn ${activeEngine === 'on_device' ? 'active device' : ''}`}
+                    onClick={() => setActiveEngine('on_device')}
+                    title="On-Device Heuristics & Benchmark Plates"
+                  >
+                    📱 On-Device
                   </button>
                 </div>
 
@@ -763,6 +828,33 @@ export default function FoodAnalyzer() {
                     </button>
                   </div>
                   <p className="fa-verdict-text">{analysis.athletic_verdict}</p>
+                </div>
+              )}
+
+              {/* Hugging Face ViT Top Predictions Telemetry */}
+              {analysis?.top_predictions && analysis.top_predictions.length > 0 && (
+                <div className="fa-vit-predictions-panel">
+                  <div className="fa-vit-predictions-header">
+                    <span>🤗 Hugging Face ViT Class Probabilities</span>
+                    <span className="fa-vit-model-badge">Jacques7103/Food-Recognition</span>
+                  </div>
+                  <div className="fa-vit-predictions-list">
+                    {analysis.top_predictions.map((pred, i) => (
+                      <div key={i} className="fa-vit-pred-item">
+                        <span className="fa-vit-pred-rank">#{pred.rank}</span>
+                        <span className="fa-vit-pred-name">{pred.display_name}</span>
+                        <div className="fa-vit-pred-bar-wrapper">
+                          <div
+                            className="fa-vit-pred-bar"
+                            style={{ width: `${Math.min(100, Math.round(pred.confidence * 100))}%` }}
+                          />
+                        </div>
+                        <span className="fa-vit-pred-pct">
+                          {Math.round(pred.confidence * 100)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -1201,6 +1293,29 @@ export default function FoodAnalyzer() {
 
             <div className="fa-modal-engine-options">
               <div
+                className={`fa-engine-option ${activeEngine === 'transformer_vit' ? 'selected' : ''}`}
+                onClick={() => setActiveEngine('transformer_vit')}
+              >
+                <input
+                  type="radio"
+                  checked={activeEngine === 'transformer_vit'}
+                  onChange={() => setActiveEngine('transformer_vit')}
+                />
+                <div>
+                  <div style={{ fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>🤗 Hugging Face Vision Transformer (Jacques7103/Food-Recognition)</span>
+                    <span style={{ fontSize: '11px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', padding: '2px 8px', borderRadius: '6px' }}>
+                      93.2% ViT Accuracy
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>
+                    Fine-tuned ViT-Base Patch16 neural architecture for high-precision food recognition.
+                    Status: {serverHealth.transformer_available || serverHealth.online ? '🟢 ViT Engine Online on Port 5050' : '⚪ Requires Local Python Server'}
+                  </div>
+                </div>
+              </div>
+
+              <div
                 className={`fa-engine-option ${activeEngine === 'gemini_vision' ? 'selected' : ''}`}
                 onClick={() => setActiveEngine('gemini_vision')}
               >
@@ -1211,7 +1326,7 @@ export default function FoodAnalyzer() {
                 />
                 <div>
                   <div style={{ fontWeight: 700, color: '#38bdf8' }}>
-                    Google Gemini Multimodal Vision AI (Recommended)
+                    Google Gemini Multimodal Vision AI
                   </div>
                   <div style={{ fontSize: '12px', color: '#94a3b8' }}>
                     Cloud multi-dish segmentation with 99%+ accuracy, visual depth and bounding boxes.

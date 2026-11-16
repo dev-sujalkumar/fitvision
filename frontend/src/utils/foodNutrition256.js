@@ -2064,7 +2064,7 @@ export const BENCHMARK_MEALS = [
         carbs: 53.1,
         fat: 0.6,
         confidence: 0.94,
-        box: { x: 18, y: 15, width: 36, height: 42 },
+        box: { x: 5, y: 62, width: 32, height: 36 },
       },
       {
         food: 'Japanese tofu and vegetable chowder',
@@ -2076,7 +2076,7 @@ export const BENCHMARK_MEALS = [
         carbs: 5.6,
         fat: 1.9,
         confidence: 0.91,
-        box: { x: 56, y: 35, width: 34, height: 38 },
+        box: { x: 31, y: 58, width: 35, height: 38 },
       },
     ],
   },

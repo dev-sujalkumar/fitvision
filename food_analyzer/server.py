@@ -41,6 +41,65 @@ try:
 except Exception:
     YOLO_AVAILABLE = False
 
+# Check for Hugging Face Vision Transformers (ViT)
+TRANSFORMERS_AVAILABLE = False
+try:
+    import torch
+    from transformers import ViTImageProcessor, AutoModelForImageClassification
+    TRANSFORMERS_AVAILABLE = True
+except Exception:
+    TRANSFORMERS_AVAILABLE = False
+
+TRANSFORMER_MODELS_CONFIG = {
+    "Jacques7103/Food-Recognition": {
+        "processor_id": "google/vit-base-patch16-224-in21k",
+        "model_id": "Jacques7103/Food-Recognition",
+        "name": "Jacques7103 Food Recognition (ViT)",
+        "source": "https://huggingface.co/Jacques7103/Food-Recognition",
+    },
+    "nateraw/food": {
+        "processor_id": "nateraw/food",
+        "model_id": "nateraw/food",
+        "name": "Food-101 Vision Transformer",
+        "source": "https://huggingface.co/nateraw/food",
+    }
+}
+
+vit_cache = {}
+
+def get_vit_pipeline(model_id="Jacques7103/Food-Recognition"):
+    global vit_cache
+    if not TRANSFORMERS_AVAILABLE:
+        return None, None
+    if model_id not in vit_cache:
+        cfg = TRANSFORMER_MODELS_CONFIG.get(model_id, TRANSFORMER_MODELS_CONFIG["Jacques7103/Food-Recognition"])
+        try:
+            from transformers import ViTImageProcessor, AutoModelForImageClassification
+            import torch
+            proc = ViTImageProcessor.from_pretrained(cfg["processor_id"])
+            mod = AutoModelForImageClassification.from_pretrained(cfg["model_id"])
+            mod.eval()
+            vit_cache[model_id] = (proc, mod)
+            print(f"[Transformer Engine] Loaded {cfg['name']} ({cfg['model_id']}) successfully!")
+        except Exception as e:
+            print(f"[Transformer Engine] Error loading {model_id}: {e}")
+            return None, None
+    return vit_cache.get(model_id, (None, None))
+
+# Macro knowledge base for Vision Transformer classes
+TRANSFORMER_MACRO_DB = {
+    "apple_pie": {"name": "Homemade Apple Pie", "icon": "🥧", "calories": 237, "protein": 1.9, "carbs": 34.0, "fat": 11.0, "density": 0.85},
+    "baby_back_ribs": {"name": "Smoked Baby Back Ribs", "icon": "🍖", "calories": 292, "protein": 24.0, "carbs": 0.0, "fat": 21.0, "density": 1.05},
+    "baklava": {"name": "Pistachio Honey Baklava", "icon": "🥐", "calories": 429, "protein": 6.7, "carbs": 54.0, "fat": 22.0, "density": 0.95},
+    "beef_carpaccio": {"name": "Tenderloin Beef Carpaccio", "icon": "🥩", "calories": 145, "protein": 21.0, "carbs": 1.0, "fat": 6.5, "density": 0.90},
+    "beef_tartare": {"name": "Seasoned Beef Tartare", "icon": "🥩", "calories": 172, "protein": 20.0, "carbs": 2.5, "fat": 9.0, "density": 0.95},
+    "beet_salad": {"name": "Roasted Beetroot Salad", "icon": "🥗", "calories": 85, "protein": 2.2, "carbs": 12.0, "fat": 3.5, "density": 0.70},
+    "beignets": {"name": "Sugar Powdered Beignets", "icon": "🍩", "calories": 380, "protein": 6.5, "carbs": 52.0, "fat": 17.0, "density": 0.60},
+    "bibimbap": {"name": "Bibimbap Korean Rice Bowl", "icon": "🍱", "calories": 140, "protein": 7.5, "carbs": 20.0, "fat": 3.8, "density": 0.82},
+    "bread_pudding": {"name": "Warm Vanilla Bread Pudding", "icon": "🍮", "calories": 210, "protein": 5.0, "carbs": 32.0, "fat": 7.5, "density": 0.90},
+    "breakfast_burrito": {"name": "High-Protein Breakfast Burrito", "icon": "🌯", "calories": 245, "protein": 13.0, "carbs": 21.0, "fat": 12.0, "density": 0.95},
+}
+
 
 def load_databases():
     global FOOD_NUTRITION_DB, DENSITY_DB
@@ -89,7 +148,7 @@ BENCHMARK_PLATES = [
                 "fat": 0.6,
                 "density": 0.85,
                 "confidence": 0.96,
-                "box": {"x": 18, "y": 32, "width": 42, "height": 45}
+                "box": {"x": 5, "y": 62, "width": 32, "height": 36}
             },
             {
                 "food": "Japanese tofu and vegetable chowder",
@@ -101,7 +160,7 @@ BENCHMARK_PLATES = [
                 "fat": 1.9,
                 "density": 0.95,
                 "confidence": 0.93,
-                "box": {"x": 58, "y": 28, "width": 36, "height": 48}
+                "box": {"x": 31, "y": 58, "width": 35, "height": 38}
             }
         ]
     },
@@ -289,8 +348,13 @@ BENCHMARK_PLATES = [
 def health():
     return jsonify({
         "status": "online",
+        "healthy": True,
         "name": "FitVision AI Food Nutrition Engine",
+        "food_database_loaded": len(FOOD_NUTRITION_DB) > 0,
         "yolo_available": YOLO_AVAILABLE,
+        "transformer_available": TRANSFORMERS_AVAILABLE,
+        "transformer_models": list(TRANSFORMER_MODELS_CONFIG.keys()),
+        "default_transformer_model": "Jacques7103/Food-Recognition",
         "weights_path": str(WEIGHTS_PATH),
         "weights_present": WEIGHTS_PATH.exists(),
         "total_foods": len(FOOD_NUTRITION_DB),
@@ -300,11 +364,13 @@ def health():
 
 
 @app.route("/api/benchmark-plates", methods=["GET"])
+@app.route("/api/benchmarks", methods=["GET"])
 def get_benchmark_plates():
     return jsonify({
         "status": "success",
         "count": len(BENCHMARK_PLATES),
-        "plates": BENCHMARK_PLATES
+        "plates": BENCHMARK_PLATES,
+        "benchmarks": BENCHMARK_PLATES
     })
 
 
@@ -490,6 +556,154 @@ def analyze_food():
                 "weight_g": round(tot_weight, 1),
             },
             "overall_confidence": round(sum(d["confidence"] for d in dishes) / max(1, len(dishes)), 3)
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/classify-transformer", methods=["POST"])
+def classify_transformer():
+    """
+    Classify food using Hugging Face Vision Transformer models:
+    - Default: Jacques7103/Food-Recognition (fine-tuned ViT-Base on Food-101 subset)
+    - Optional: nateraw/food (Food-101 101-class ViT)
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        model_name = data.get("model_name", "Jacques7103/Food-Recognition")
+        plate_diam = float(data.get("plate_diameter_cm", 16.0))
+
+        image_data = data.get("image")
+        if not image_data and "image" in request.files:
+            file = request.files["image"]
+            image_bytes = file.read()
+            pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        elif image_data:
+            if "," in image_data:
+                image_data = image_data.split(",", 1)[1]
+            image_bytes = base64.b64decode(image_data)
+            pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        else:
+            return jsonify({"status": "error", "message": "No image provided"}), 400
+
+        if not TRANSFORMERS_AVAILABLE:
+            return jsonify({
+                "status": "error",
+                "message": "Transformers / PyTorch is not available in the current Python environment."
+            }), 500
+
+        proc, mod = get_vit_pipeline(model_name)
+        if proc is None or mod is None:
+            return jsonify({
+                "status": "error",
+                "message": f"Failed to initialize Hugging Face Vision Transformer model: {model_name}"
+            }), 500
+
+        # Run model inference
+        import torch
+        inputs = proc(images=pil_img, return_tensors="pt")
+        with torch.no_grad():
+            outputs = mod(**inputs)
+            logits = outputs.logits
+            probs = torch.softmax(logits, dim=-1)[0]
+            topk = torch.topk(probs, k=min(5, probs.shape[0]))
+
+        top_predictions = []
+        for i in range(len(topk.indices)):
+            idx = topk.indices[i].item()
+            score = float(topk.values[i].item())
+            raw_label = mod.config.id2label.get(idx, f"food_class_{idx}")
+            clean_label = str(raw_label).replace("_", " ").title()
+            top_predictions.append({
+                "label": raw_label,
+                "display_name": clean_label,
+                "confidence": round(score, 4),
+                "rank": i + 1
+            })
+
+        # Generate volumetric dishes from top predictions
+        primary = top_predictions[0]
+        raw_key = primary["label"].lower().strip()
+        macro_info = TRANSFORMER_MACRO_DB.get(raw_key, {})
+        display_title = macro_info.get("name", primary["display_name"])
+        icon = macro_info.get("icon", "🍲")
+
+        # Scale weights with plate diameter
+        plate_scale = (plate_diam / 16.0) ** 2
+        base_weight = 220.0 * plate_scale
+        density = macro_info.get("density", 0.90)
+
+        # Compute macros for primary dish
+        cal_100g = macro_info.get("calories", 180.0)
+        pro_100g = macro_info.get("protein", 8.0)
+        carb_100g = macro_info.get("carbs", 22.0)
+        fat_100g = macro_info.get("fat", 6.0)
+
+        factor = base_weight / 100.0
+        primary_dish = {
+            "id": "vit_dish_1",
+            "name": display_title,
+            "food": raw_key,
+            "icon": icon,
+            "weight_g": round(base_weight, 1),
+            "calories": round(cal_100g * factor, 1),
+            "protein": round(pro_100g * factor, 1),
+            "carbs": round(carb_100g * factor, 1),
+            "fat": round(fat_100g * factor, 1),
+            "confidence": primary["confidence"],
+            "density": density,
+            "box": {"x": 16, "y": 18, "width": 68, "height": 64}
+        }
+        dishes = [primary_dish]
+
+        # If secondary prediction has reasonable confidence (> 0.12), add as secondary side item
+        if len(top_predictions) > 1 and top_predictions[1]["confidence"] > 0.12:
+            sec = top_predictions[1]
+            sec_key = sec["label"].lower().strip()
+            sec_macro = TRANSFORMER_MACRO_DB.get(sec_key, {})
+            sec_weight = round(120.0 * plate_scale, 1)
+            sec_factor = sec_weight / 100.0
+            dishes.append({
+                "id": "vit_dish_2",
+                "name": sec_macro.get("name", sec["display_name"]),
+                "food": sec_key,
+                "icon": sec_macro.get("icon", "🥗"),
+                "weight_g": sec_weight,
+                "calories": round(sec_macro.get("calories", 140.0) * sec_factor, 1),
+                "protein": round(sec_macro.get("protein", 5.0) * sec_factor, 1),
+                "carbs": round(sec_macro.get("carbs", 18.0) * sec_factor, 1),
+                "fat": round(sec_macro.get("fat", 4.0) * sec_factor, 1),
+                "confidence": sec["confidence"],
+                "density": sec_macro.get("density", 0.85),
+                "box": {"x": 58, "y": 48, "width": 34, "height": 38}
+            })
+            primary_dish["box"] = {"x": 10, "y": 18, "width": 52, "height": 56}
+
+        tot_cal = round(sum(d["calories"] for d in dishes), 1)
+        tot_pro = round(sum(d["protein"] for d in dishes), 1)
+        tot_carb = round(sum(d["carbs"] for d in dishes), 1)
+        tot_fat = round(sum(d["fat"] for d in dishes), 1)
+        tot_weight = round(sum(d["weight_g"] for d in dishes), 1)
+
+        return jsonify({
+            "status": "success",
+            "engine": "transformer_vit",
+            "model": model_name,
+            "model_source": "https://huggingface.co/Jacques7103/Food-Recognition",
+            "architecture": "Vision Transformer (ViT-Base)",
+            "plate_diameter_cm": plate_diam,
+            "top_predictions": top_predictions,
+            "dishes": dishes,
+            "totals": {
+                "calories": tot_cal,
+                "protein": tot_pro,
+                "carbs": tot_carb,
+                "fat": tot_fat,
+                "weight_g": tot_weight
+            },
+            "overall_confidence": primary["confidence"],
+            "athletic_verdict": f"Hugging Face ViT detected {display_title} with {round(primary['confidence'] * 100, 1)}% confidence. Providing {tot_pro}g protein and {tot_cal} kcal for muscle protein synthesis and glycogen restoration."
         })
 
     except Exception as e:
