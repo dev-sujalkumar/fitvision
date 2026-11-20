@@ -259,6 +259,7 @@ def list_foods():
 @app.route("/api/benchmark-plates", methods=["GET"])
 @app.route("/api/benchmarks", methods=["GET"])
 def get_benchmark_plates():
+<<<<<<< Updated upstream
     """Return diverse benchmark plates including Indian thali, gym bowls, and Asian staples."""
     benchmarks = [
         {
@@ -306,15 +307,215 @@ def get_benchmark_plates():
                 nutrition_engine.calculate_dish_nutrition("Steamed Rice", 160.0),
                 nutrition_engine.calculate_dish_nutrition("Salad", 100.0),
             ]
+=======
+    return jsonify({
+        "status": "success",
+        "count": len(BENCHMARK_PLATES),
+        "plates": BENCHMARK_PLATES
+    })
+
+
+@app.route("/api/foods", methods=["GET"])
+def get_foods():
+    q = request.args.get("q", "").strip().lower()
+    items = []
+    for food_key, data in FOOD_NUTRITION_DB.items():
+        if not q or q in food_key:
+            items.append({
+                "key": food_key,
+                "name": data["name"],
+                "calories": data["calories"],
+                "protein": data["protein"],
+                "carbs": data["carbs"],
+                "fat": data["fat"],
+                "density": DENSITY_DB.get(food_key, 0.85)
+            })
+    return jsonify({
+        "status": "success",
+        "count": len(items),
+        "foods": items[:100]
+    })
+
+
+def resolve_food_key(label):
+    """Match a detector label to nutrition_256.csv, including close aliases."""
+    key = " ".join(str(label or "").strip().lower().replace("_", " ").split())
+    if not key:
+        return "unknown"
+    if key in FOOD_NUTRITION_DB:
+        return key
+
+    aliases = {
+        "chicken": "roast chicken",
+        "grilled chicken": "roast chicken",
+        "chicken breast": "roast chicken",
+        "vegetables": "sauteed vegetables",
+        "vegetable": "sauteed vegetables",
+        "greens": "sauteed spinach",
+        "broccoli": "sauteed vegetables",
+        "white rice": "rice",
+        "steamed rice": "rice",
+        "steamed white rice": "rice",
+    }
+    if aliases.get(key) in FOOD_NUTRITION_DB:
+        return aliases[key]
+
+    contained = [candidate for candidate in FOOD_NUTRITION_DB if candidate in key]
+    if contained:
+        return max(contained, key=len)
+    if len(key) >= 4:
+        containers = [candidate for candidate in FOOD_NUTRITION_DB if key in candidate]
+        if len(containers) == 1:
+            return containers[0]
+    return key
+
+
+def compute_dish_macros(food_key, weight_g):
+    key = str(food_key).lower().strip()
+    entry = FOOD_NUTRITION_DB.get(key)
+    if not entry:
+        # Fallback default
+        f = max(0.0, float(weight_g)) / 100.0
+        return {
+            "calories": round(150.0 * f, 1),
+            "protein": round(6.0 * f, 1),
+            "carbs": round(20.0 * f, 1),
+            "fat": round(4.0 * f, 1),
+>>>>>>> Stashed changes
         }
     ]
 
+<<<<<<< Updated upstream
     return jsonify({
         "status": "success",
         "count": len(benchmarks),
         "benchmarks": benchmarks,
         "plates": benchmarks
     })
+=======
+
+def _get_food_model():
+    global YOLO_MODEL
+    with YOLO_LOCK:
+        if not YOLO_AVAILABLE:
+            raise RuntimeError("Food detector weights or Ultralytics are unavailable.")
+        if YOLO_MODEL is None:
+            YOLO_MODEL = YOLO(str(WEIGHTS_PATH))
+        return YOLO_MODEL
+
+
+def analyze_image_with_yolo(pil_img, plate_diam_cm=16.0):
+    """Detect UECFOOD256 classes and estimate editable portions from plate scale."""
+    width, height = pil_img.size
+    image_rgb = np.asarray(pil_img.convert("RGB"))
+    with YOLO_LOCK:
+        model = _get_food_model()
+        result = model.predict(
+            source=image_rgb,
+            imgsz=640,
+            conf=0.25,
+            iou=0.5,
+            max_det=20,
+            verbose=False,
+        )[0]
+
+    image_area = max(1, width * height)
+    plate_area_cm2 = math.pi * (plate_diam_cm / 2.0) ** 2
+    dishes = []
+    if result.boxes is None:
+        return dishes
+
+    for box in result.boxes:
+        class_id = int(box.cls.item())
+        raw_label = str(result.names[class_id]).strip()
+        food_key = resolve_food_key(raw_label)
+        nutrition = FOOD_NUTRITION_DB.get(food_key)
+
+        x1, y1, x2, y2 = [float(value) for value in box.xyxy[0].tolist()]
+        box_width = max(0.0, min(width, x2) - max(0.0, x1))
+        box_height = max(0.0, min(height, y2) - max(0.0, y1))
+        if box_width <= 0 or box_height <= 0:
+            continue
+
+        # Bounding boxes do not measure depth; this is only an editable starting estimate.
+        covered_plate_area = min(
+            plate_area_cm2 * 0.85,
+            (box_width * box_height / image_area) * plate_area_cm2 / 0.55,
+        )
+        density = DENSITY_DB.get(food_key, 0.85)
+        weight_g = round(max(15.0, min(600.0, covered_plate_area * 2.5 * density)), 1)
+        confidence = float(box.conf.item())
+        macros = compute_dish_macros(food_key, weight_g)
+        dishes.append({
+            "food": food_key,
+            "name": nutrition["name"] if nutrition else raw_label,
+            "weight_g": weight_g,
+            **macros,
+            "confidence": confidence,
+            "density": density,
+            "box": {
+                "x": round(max(0.0, min(100.0, x1 / width * 100)), 1),
+                "y": round(max(0.0, min(100.0, y1 / height * 100)), 1),
+                "width": round(max(0.0, min(100.0, box_width / width * 100)), 1),
+                "height": round(max(0.0, min(100.0, box_height / height * 100)), 1),
+            },
+        })
+    return dishes
+
+
+@app.route("/api/analyze-food", methods=["POST"])
+def analyze_food():
+    try:
+        data = request.get_json(silent=True) or {}
+        plate_diam = float(data.get("plate_diameter_cm", 16.0))
+        if not math.isfinite(plate_diam) or not 12.0 <= plate_diam <= 30.0:
+            return jsonify({"status": "error", "message": "Plate diameter must be between 12 and 30 cm."}), 400
+        if not YOLO_AVAILABLE:
+            return jsonify({
+                "status": "error",
+                "message": "Food recognition is unavailable. Install the backend requirements and verify the detector weights.",
+            }), 503
+
+        image_data = data.get("image")
+        if not image_data and "image" in request.files:
+            file = request.files["image"]
+            image_bytes = file.read()
+            pil_img = Image.open(io.BytesIO(image_bytes))
+        elif image_data:
+            if "," in image_data:
+                image_data = image_data.split(",", 1)[1]
+            image_bytes = base64.b64decode(image_data)
+            pil_img = Image.open(io.BytesIO(image_bytes))
+        else:
+            return jsonify({"status": "error", "message": "No image provided"}), 400
+
+        dishes = analyze_image_with_yolo(pil_img, plate_diam)
+
+        tot_cal = sum(d["calories"] for d in dishes)
+        tot_pro = sum(d["protein"] for d in dishes)
+        tot_carb = sum(d["carbs"] for d in dishes)
+        tot_fat = sum(d["fat"] for d in dishes)
+        tot_weight = sum(d["weight_g"] for d in dishes)
+
+        return jsonify({
+            "status": "success",
+            "engine": "yolov8m_uec256",
+            "plate_name": "Detected meal" if dishes else "No foods detected",
+            "plate_diameter_cm": plate_diam,
+            "dishes": dishes,
+            "totals": {
+                "calories": round(tot_cal, 1),
+                "protein": round(tot_pro, 1),
+                "carbs": round(tot_carb, 1),
+                "fat": round(tot_fat, 1),
+                "weight_g": round(tot_weight, 1),
+            },
+            "overall_confidence": round(sum(d["confidence"] for d in dishes) / max(1, len(dishes)), 3)
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+>>>>>>> Stashed changes
 
 
 if __name__ == "__main__":

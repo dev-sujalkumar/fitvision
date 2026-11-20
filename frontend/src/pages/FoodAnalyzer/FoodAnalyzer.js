@@ -12,10 +12,14 @@ import {
   classifyWithPyTorch,
   loadSamplePlate,
   setGeminiApiKey,
+<<<<<<< Updated upstream
   getGeminiApiKey,
   correctDishOnline,
   getVlmConfig,
   setVlmConfig,
+=======
+  verifyGeminiApiKey,
+>>>>>>> Stashed changes
 } from '../../utils/foodAnalyzerService';
 import { saveFoodEntry, getFoodDiary, deleteFoodEntry } from '../../utils/storage';
 import { speakInstruction, soundEffects } from '../../utils/voiceCoach';
@@ -68,7 +72,27 @@ export default function FoodAnalyzer() {
     setTimeout(() => setToastMsg(null), 3200);
   };
 
+<<<<<<< Updated upstream
   // Initial Load: Check server health & load diary ONLY (starts completely empty)
+=======
+  // Meal Diary & Hydration State
+  const [mealDiary, setMealDiary] = useState([]);
+  const [selectedMealType, setSelectedMealType] = useState('Lunch'); // 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'
+  const [toast, setToast] = useState(null);
+  const [foodQuery, setFoodQuery] = useState('');
+  const [dbVisibleCount, setDbVisibleCount] = useState(24);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [waterIntakeMl, setWaterIntakeMl] = useState(() => {
+    try {
+      const saved = localStorage.getItem('fitvision_water_ml');
+      return saved ? parseInt(saved, 10) : 1250;
+    } catch (e) {
+      return 1250;
+    }
+  });
+
+  // Load initial benchmark plate & check server on mount
+>>>>>>> Stashed changes
   useEffect(() => {
     checkServerHealth().then((health) => {
       setServerHealth(health);
@@ -95,6 +119,7 @@ export default function FoodAnalyzer() {
     }
   };
 
+<<<<<<< Updated upstream
   // Re-check server on demand
   const handleRefreshServer = async () => {
     showToast('Checking Hybrid Food Recognition API on port 5050...');
@@ -115,14 +140,96 @@ export default function FoodAnalyzer() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
       fileInputRef.current.click();
+=======
+  // Camera Management
+  // The video element only exists after cameraActive flips, so the stream
+  // has to be attached in an effect that runs after that render.
+  const startCamera = () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setErrorMsg('Camera access is not available in this browser. Upload a meal photo instead.');
+      return;
+    }
+    setErrorMsg(null);
+    setViewportMode('camera');
+    setCameraActive(true);
+  };
+
+  const stopCamera = () => {
+    setCameraActive(false);
+  };
+
+  useEffect(() => {
+    if (!cameraActive) return undefined;
+    let cancelled = false;
+    let stream = null;
+
+    const start = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+      } catch (err) {
+        console.error('Camera stream access error:', err);
+        if (!cancelled) {
+          setErrorMsg('Unable to access camera. Please allow camera permissions or upload an image.');
+          setCameraActive(false);
+        }
+      }
+    };
+
+    start();
+    return () => {
+      cancelled = true;
+      const liveStream = videoRef.current?.srcObject || stream;
+      liveStream?.getTracks?.().forEach((track) => track.stop());
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+  }, [cameraActive]);
+
+  const captureCameraFrame = () => {
+    if (!videoRef.current || videoRef.current.readyState < 2) {
+      setErrorMsg('The camera is still starting. Please wait a moment and try again.');
+      return;
+    }
+    try {
+      soundEffects.playRepSuccess();
+    } catch (e) {}
+
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth || 640;
+    canvas.height = videoRef.current.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      setCustomImageSrc(dataUrl);
+      setAnalysis(null);
+      stopCamera();
+      triggerFoodAnalysis(dataUrl);
+>>>>>>> Stashed changes
     }
   };
 
-  // File Upload Handling
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const showToast = (message) => {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 2800);
+  };
 
+  // File Upload Handling
+  const processImageFile = (file) => {
+    if (!file) return;
+<<<<<<< Updated upstream
+
+=======
+>>>>>>> Stashed changes
     if (!file.type.startsWith('image/')) {
       setErrorMsg('Please upload a valid image file (JPG, PNG, WebP).');
       return;
@@ -130,6 +237,7 @@ export default function FoodAnalyzer() {
 
     const reader = new FileReader();
     reader.onload = (event) => {
+<<<<<<< Updated upstream
       const src = event.target?.result;
       setCustomImageSrc(src);
       setUploadedFileName(file.name);
@@ -137,10 +245,22 @@ export default function FoodAnalyzer() {
       setViewportMode('upload');
       setErrorMsg(null);
       showToast('📸 Photo loaded! Click "Scan Meal with PyTorch AI" to analyze.');
+=======
+      const base64 = event.target?.result;
+      if (base64) {
+        setCustomImageSrc(base64);
+        setAnalysis(null);
+        setSelectedDishId(null);
+        setViewportMode('upload');
+        stopCamera();
+        triggerFoodAnalysis(base64);
+      }
+>>>>>>> Stashed changes
     };
     reader.readAsDataURL(file);
   };
 
+<<<<<<< Updated upstream
   // Drag & Drop Handlers
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -178,6 +298,23 @@ export default function FoodAnalyzer() {
 
   // Reset / Clear Photo Back to Empty State
   const handleResetPhoto = () => {
+=======
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    e.currentTarget.value = '';
+    processImageFile(file);
+  };
+
+  const handleStageDrop = (event) => {
+    event.preventDefault();
+    setIsDragOver(false);
+    processImageFile(event.dataTransfer.files?.[0]);
+  };
+
+  // Benchmark Plate Selection
+  const handleSelectBenchmark = (benchMeal) => {
+    setSelectedBenchmarkId(benchMeal.id);
+>>>>>>> Stashed changes
     setCustomImageSrc(null);
     setAnalysis(null);
     setUploadedFileName('');
@@ -384,8 +521,45 @@ export default function FoodAnalyzer() {
     }
   };
 
+<<<<<<< Updated upstream
   // Spoken Voice Feedback
   const handleVoiceFeedback = () => {
+=======
+  // Dish Fine-Tuning
+  const handleUpdateDishGrams = (dishId, newGrams) => {
+    const updated = updateDishInAnalysis(analysis, dishId, { weight_g: parseFloat(newGrams) });
+    setAnalysis(updated);
+  };
+
+  const handleUpdateDishFood = (dishId, foodKey) => {
+    const updated = updateDishInAnalysis(analysis, dishId, {
+      food: foodKey,
+      name: FOOD_DATABASE_256[foodKey]?.name || foodKey,
+    });
+    setAnalysis(updated);
+  };
+
+  const handleRemoveDish = (dishId) => {
+    const updated = removeDishFromAnalysis(analysis, dishId);
+    setAnalysis(updated);
+    if (selectedDishId === dishId) setSelectedDishId(null);
+  };
+
+  const handleAddDish = (foodKey = newDishFoodKey, grams = newDishGrams) => {
+    const key = typeof foodKey === 'string' ? foodKey : newDishFoodKey;
+    if (!key) return;
+    const base = analysis || loadBenchmarkPlate(selectedBenchmarkId, plateDiameter);
+    const updated = addDishToAnalysis(base, key, Number(grams) || 100);
+    setAnalysis(updated);
+    setIsAddingDish(false);
+    setSelectedDishId(updated.dishes[updated.dishes.length - 1]?.id || null);
+    setActiveTab('scanner');
+    showToast(`Added ${FOOD_DATABASE_256[key]?.name || key} to the plate.`);
+  };
+
+  // Voice Coach readout
+  const handleVoiceVerdict = () => {
+>>>>>>> Stashed changes
     if (!analysis) return;
     const msg = `${analysis.plate_name}. Caloric yield: ${Math.round(analysis.totals.calories)} calories, ${Math.round(analysis.totals.protein)} grams protein, ${Math.round(analysis.totals.carbs)} grams carbohydrates. ${analysis.athletic_verdict}`;
     speakInstruction(msg);
@@ -416,7 +590,22 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
       protein: analysis.totals.protein,
       carbs: analysis.totals.carbs,
       fat: analysis.totals.fat,
+<<<<<<< Updated upstream
       timestamp: Date.now(),
+=======
+      weight_g: analysis.totals.weight_g,
+      nutriScore: analysis.nutriScore?.grade || 'A',
+      dishes: analysis.dishes.map((d) => ({
+        name: d.name,
+        food: d.food,
+        icon: d.icon,
+        weight_g: d.weight_g,
+        calories: d.calories,
+      })),
+      mealName: analysis.plate_name || `${selectedMealType} Plate`,
+      totals: analysis.totals,
+      imageUrl: customImageSrc?.startsWith('data:') ? null : currentViewportImage,
+>>>>>>> Stashed changes
     };
 
     try {
@@ -426,6 +615,21 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
       try {
         soundEffects.playRepSuccess();
       } catch (e) {}
+<<<<<<< Updated upstream
+=======
+      const mealTypeHindi = {
+        breakfast: 'नाश्ते',
+        lunch: 'दोपहर के भोजन',
+        dinner: 'रात के भोजन',
+        snack: 'स्नैक',
+      }[String(selectedMealType).toLowerCase()] || 'भोजन';
+      const voiceText = VoiceCoach.getLanguage() === 'hi'
+        ? `${entry.name} को आपकी ${mealTypeHindi} डायरी में दर्ज किया गया।`
+        : `Logged ${entry.name} to your ${selectedMealType} diary.`;
+      speakInstruction(voiceText, { category: 'telemetry' });
+      showToast(`${entry.name} saved to your ${selectedMealType.toLowerCase()} diary.`);
+      setActiveTab('diary');
+>>>>>>> Stashed changes
     } catch (e) {
       showToast('Error saving to diary');
     }
@@ -434,6 +638,7 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
   // Delete Diary Entry
   const handleDeleteDiaryItem = async (id) => {
     try {
+<<<<<<< Updated upstream
       await deleteFoodEntry(id);
       setDiaryEntries((prev) => prev.filter((item) => item.id !== id));
       showToast('Meal removed from diary');
@@ -447,6 +652,41 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
       const matchQuery = !q || item.name.toLowerCase().includes(q) || key.includes(q);
       const matchCat = selectedCategory === 'All' || item.category === selectedCategory;
       return matchQuery && matchCat;
+=======
+      setGeminiApiKey(geminiKeyInput);
+      await verifyGeminiApiKey(geminiKeyInput);
+      setKeyTestStatus('valid');
+      setActiveEngine('gemini_vision');
+      setTimeout(() => setIsSettingsOpen(false), 800);
+    } catch (e) {
+      console.warn('API key test error:', e);
+      setKeyTestStatus('error');
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
+
+  // Filtered Food Database items
+  const foodChoices = useMemo(() => {
+    const query = foodQuery.trim().toLowerCase();
+    const keys = Object.keys(FOOD_DATABASE_256);
+    const matched = query ? keys.filter((key) => key.includes(query)) : keys;
+    return matched.slice(0, 80);
+  }, [foodQuery]);
+
+  const filteredDatabaseFoods = useMemo(() => {
+    const list = Object.entries(FOOD_DATABASE_256).map(([key, item]) => ({ ...item, key }));
+    return list.filter((item) => {
+      const matchSearch =
+        !dbSearch || item.name.toLowerCase().includes(dbSearch.toLowerCase());
+      if (!matchSearch) return false;
+
+      if (dbFilter === 'high_protein') return item.protein >= 12;
+      if (dbFilter === 'low_carb') return item.carbs <= 10;
+      if (dbFilter === 'low_cal') return item.calories <= 120;
+      if (dbFilter === 'high_density') return item.density >= 0.9;
+      return true;
+>>>>>>> Stashed changes
     });
   }, [searchQuery, selectedCategory]);
 

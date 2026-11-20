@@ -368,17 +368,31 @@ export const getPostureMeasurementHistory = async (limit = 50) => {
  * Save a food diary meal entry (IndexedDB with LocalStorage sync)
  */
 export const saveFoodEntry = async (entry) => {
+  const calories = Number(entry.calories ?? entry.totals?.calories ?? 0) || 0;
+  const protein = Number(entry.protein ?? entry.totals?.protein ?? 0) || 0;
+  const carbs = Number(entry.carbs ?? entry.totals?.carbs ?? 0) || 0;
+  const fat = Number(entry.fat ?? entry.totals?.fat ?? 0) || 0;
+  const weightG = Number(entry.weight_g ?? entry.totals?.weight_g ?? 0) || 0;
+  const mealName = entry.mealName || entry.name || 'Logged Meal';
   const foodItem = {
     id: entry.id || `meal_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
     timestamp: entry.timestamp || Date.now(),
     dateStr: entry.dateStr || new Date().toISOString().split('T')[0],
-    mealName: entry.mealName || 'Logged Meal',
+    mealName,
+    name: entry.name || mealName,
+    mealType: entry.mealType || 'Meal',
+    calories,
+    protein,
+    carbs,
+    fat,
+    weight_g: weightG,
     dishes: entry.dishes || [],
-    totals: entry.totals || {
-      calories: 0,
-      protein: 0,
-      carbs: 0,
-      fat: 0,
+    totals: {
+      calories,
+      protein,
+      carbs,
+      fat,
+      weight_g: weightG,
     },
     imageUrl: entry.imageUrl || null,
     confidence: entry.confidence || 0.94,
