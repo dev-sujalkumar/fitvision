@@ -1,0 +1,36 @@
+================================================================================
+CSE471 FINAL CAPSTONE PROJECT - LIVE DEPLOYMENT DETAILS
+Lovely Professional University (LPU) - Department of Computer Science & Engineering
+================================================================================
+
+Student Name     : Sujal Kumar
+Roll Number      : 10
+Registration No  : 12405329
+Course Code      : CSE471
+Project Title    : FitVision_AI (AI Real-Time Movement Posture & Food Vision Studio)
+
+--------------------------------------------------------------------------------
+1. LIVE PUBLIC WEB APPLICATION URL
+--------------------------------------------------------------------------------
+Frontend (Vercel) : https://fitvision.vercel.app
+Alternative Link  : https://fitvision-amber.vercel.app
+
+--------------------------------------------------------------------------------
+2. SOURCE CODE REPOSITORY
+--------------------------------------------------------------------------------
+GitHub Repository : https://github.com/dev-sujalkumar/fitvision
+Branch            : main
+
+--------------------------------------------------------------------------------
+3. BACKEND API SERVICE (OPTIONAL ML BACKEND)
+--------------------------------------------------------------------------------
+Hosted API URL    : https://fitvision-backend.onrender.com (or local on Port 5050)
+API Health Check  : http://localhost:5050/api/health
+
+--------------------------------------------------------------------------------
+4. TEST / DEMO CREDENTIALS & INSTRUCTIONS
+--------------------------------------------------------------------------------
+- No account login is required to test the core features.
+- Yoga & Gym Movement Tracker: Grants browser webcam access to run real-time MoveNet pose estimation directly in the browser.
+- Food Vision Studio: Drag and drop any food image (or click any of the 4 sample benchmark plates) to test automatic multi-dish recognition and nutritional breakdown.
+================================================================================

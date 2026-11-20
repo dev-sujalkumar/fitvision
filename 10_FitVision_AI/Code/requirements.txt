@@ -1,0 +1,29 @@
+# ==============================================================================
+# FitVision AI - Python Backend Dependencies
+# Course: CSE471 | Student: Sujal Kumar | Roll No: 10 | Reg No: 12405329
+# ==============================================================================
+
+# Core Flask REST API & Networking
+flask>=2.3.0
+flask-cors>=4.0.0
+gunicorn>=21.2.0
+requests>=2.31.0
+
+# Computer Vision & Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+ultralytics>=8.1.0
+opencv-python-headless>=4.8.0
+
+# Scientific Computation & Data Processing
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+pillow>=10.0.0
+
+# Multimodal Large Language Models (VLM Fallback)
+google-generativeai>=0.4.0
+
+# Utilities
+python-dotenv>=1.0.0
+tqdm>=4.66.0
