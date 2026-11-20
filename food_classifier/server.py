@@ -6,15 +6,17 @@ Delegates to food_analyzer.server for full Hybrid AI (YOLOv8 + VLM Fallback + In
 import sys
 from pathlib import Path
 
-# Add food_analyzer to sys.path
+# Add root and food_analyzer to sys.path
 BASE_DIR = Path(__file__).resolve().parent.parent
 FOOD_ANALYZER_DIR = BASE_DIR / "food_analyzer"
 
 if str(FOOD_ANALYZER_DIR) not in sys.path:
     sys.path.insert(0, str(FOOD_ANALYZER_DIR))
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 # Import the unified Flask application from food_analyzer
-from server import app
+from food_analyzer.server import app
 
 if __name__ == "__main__":
     import os

@@ -254,8 +254,10 @@ class HybridFoodRouter:
         vlm_dishes_raw = vlm_result.get("dishes", []) if vlm_result else []
         processed_vlm_dishes = []
 
-        vlm_provider_id = vlm_result.get("vlm_provider", "vlm_gemini")
-        provider_badge = "🔮 VLM Recognition (Gemini Vision)" if "gemini" in vlm_provider_id else "🔮 VLM Recognition (Local Moondream)"
+        vlm_provider_id = vlm_result.get("vlm_provider", "vlm_gemini") if vlm_result else "vlm_fallback"
+        provider_badge = "🔮 VLM Recognition (Gemini Vision)" if "gemini" in vlm_provider_id else (
+            "🔮 VLM Recognition (Local Moondream)" if "moondream" in vlm_provider_id else "AI Recognition"
+        )
 
         for idx, vd in enumerate(vlm_dishes_raw):
             dish_name = vd.get("name", "Specialty Food")
@@ -280,7 +282,7 @@ class HybridFoodRouter:
                     "carbs_per_100g": vd.get("carbs_per_100g", 22.0),
                     "fat_per_100g": vd.get("fat_per_100g", 5.0),
                     "fiber_per_100g": vd.get("fiber_per_100g", 2.0),
-                    "cuisine": vd.get("cuisine", vlm_result.get("overall_cuisine", "Indian / Global")),
+                    "cuisine": vd.get("cuisine", vlm_result.get("overall_cuisine", "Indian / Global") if vlm_result else "Indian / Global"),
                     "category": vd.get("food_category", "Specialty Dish"),
                     "visible_ingredients": vd.get("visible_ingredients", [dish_name]),
                     "cooking_method": vd.get("cooking_method", "Traditional preparation")
