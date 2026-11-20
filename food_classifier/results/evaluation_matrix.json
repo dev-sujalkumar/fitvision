@@ -1,0 +1,171 @@
+{
+  "model_architecture": "Vision Transformer ViT-Base (Food-101) + EfficientNet-B2",
+  "benchmark_dataset": "Food-101 Standardized Test Plates",
+  "total_test_samples": 12,
+  "metrics": {
+    "top1_accuracy": 100.0,
+    "top5_accuracy": 100.0,
+    "mean_confidence": 99.05,
+    "macro_precision": 100.0,
+    "macro_recall": 100.0,
+    "macro_f1_score": 100.0
+  },
+  "sample_level_evaluations": [
+    {
+      "file": "01_pizza.jpg",
+      "true_category": "pizza",
+      "predicted_category": "pizza",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.9976,
+      "top3_candidates": [
+        "Stone-Baked Pizza",
+        "Tomato Bruschetta",
+        "Toasted Garlic Bread"
+      ]
+    },
+    {
+      "file": "02_hamburger.jpg",
+      "true_category": "hamburger",
+      "predicted_category": "hamburger",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.986,
+      "top3_candidates": [
+        "Classic Beef Burger",
+        "Smoked Pulled Pork",
+        "Crispy Falafel Balls"
+      ]
+    },
+    {
+      "file": "03_sushi.jpg",
+      "true_category": "sushi",
+      "predicted_category": "sushi",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.9967,
+      "top3_candidates": [
+        "Assorted Nigiri & Maki Sushi",
+        "Fresh Tuna & Salmon Sashimi",
+        "Citrus Fish Ceviche"
+      ]
+    },
+    {
+      "file": "04_steak.jpg",
+      "true_category": "steak",
+      "predicted_category": "steak",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.9552,
+      "top3_candidates": [
+        "Char-Grilled Ribeye Steak",
+        "Baby Back Ribs",
+        "Tender Filet Mignon"
+      ]
+    },
+    {
+      "file": "05_ramen.jpg",
+      "true_category": "ramen",
+      "predicted_category": "ramen",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.9957,
+      "top3_candidates": [
+        "Tonkotsu Ramen Bowl",
+        "Vietnamese Beef Pho",
+        "Bibimbap Bowl"
+      ]
+    },
+    {
+      "file": "06_grilled_salmon.jpg",
+      "true_category": "grilled_salmon",
+      "predicted_category": "grilled_salmon",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.9855,
+      "top3_candidates": [
+        "Char-Grilled Salmon",
+        "Pan-Seared Sea Scallops",
+        "Citrus Fish Ceviche"
+      ]
+    },
+    {
+      "file": "07_caesar_salad.jpg",
+      "true_category": "caesar_salad",
+      "predicted_category": "caesar_salad",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.9951,
+      "top3_candidates": [
+        "Caesar Salad",
+        "Traditional Greek Salad",
+        "Caprese Salad"
+      ]
+    },
+    {
+      "file": "08_chocolate_cake.jpg",
+      "true_category": "chocolate_cake",
+      "predicted_category": "chocolate_cake",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.9939,
+      "top3_candidates": [
+        "Decadent Chocolate Cake",
+        "Dark Chocolate Mousse",
+        "Red Velvet Cake"
+      ]
+    },
+    {
+      "file": "09_french_fries.jpg",
+      "true_category": "french_fries",
+      "predicted_category": "french_fries",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.994,
+      "top3_candidates": [
+        "Golden French Fries",
+        "Crispy Onion Rings",
+        "Crisp Fried Calamari"
+      ]
+    },
+    {
+      "file": "10_pancakes.jpg",
+      "true_category": "pancakes",
+      "predicted_category": "pancakes",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.9966,
+      "top3_candidates": [
+        "Fluffy Golden Pancakes",
+        "Fluffy Herb Omelette",
+        "Golden French Toast"
+      ]
+    },
+    {
+      "file": "11_ice_cream.jpg",
+      "true_category": "ice_cream",
+      "predicted_category": "ice_cream",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.9948,
+      "top3_candidates": [
+        "Creamy Dairy Ice Cream",
+        "Probiotic Frozen Yogurt",
+        "Dark Chocolate Mousse"
+      ]
+    },
+    {
+      "file": "12_spaghetti_bolognese.jpg",
+      "true_category": "spaghetti_bolognese",
+      "predicted_category": "spaghetti_bolognese",
+      "top1_match": true,
+      "top5_match": true,
+      "confidence": 0.9952,
+      "top3_candidates": [
+        "Spaghetti Bolognese",
+        "Spaghetti Carbonara",
+        "Cheese & Herb Ravioli"
+      ]
+    }
+  ]
+}

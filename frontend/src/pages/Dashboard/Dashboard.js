@@ -399,7 +399,7 @@ export default function Dashboard() {
             <span className="readiness-dot" style={{ background: readiness.tone }} />
             <span className="readiness-text">{readiness.text}</span>
           </div>
-          <h1 className="dash-title">📊 Fitness Command Center</h1>
+          <h1 className="dash-title">📊 Track Your Fitness</h1>
           <p className="dash-sub">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · Real-time AI
             telemetry & energy balance
@@ -413,11 +413,7 @@ export default function Dashboard() {
               🧘 Start Yoga
             </button>
           </Link>
-          <Link to="/gym">
-            <button className="btn-dash-action gym-glow" title="Start AI Gym Rep Counter">
-              💪 Start Gym
-            </button>
-          </Link>
+
           {stats.totalSessions === 0 && (
             <button className="btn-dash-action demo-glow" onClick={handleLoadStarterPack} title="Load sample workouts">
               ⚡ Load Demo Pack
@@ -584,9 +580,7 @@ export default function Dashboard() {
         >
           📋 Executive Overview
         </button>
-        <button className={`dash-tab ${selectedTab === 'gym' ? 'active' : ''}`} onClick={() => setSelectedTab('gym')}>
-          💪 Gym Logs ({gymWorkouts.length})
-        </button>
+
         <button
           className={`dash-tab ${selectedTab === 'yoga' ? 'active' : ''}`}
           onClick={() => setSelectedTab('yoga')}
@@ -850,9 +844,7 @@ export default function Dashboard() {
                     <Link to="/start">
                       <button className="btn-primary-glow">🧘 Start Yoga</button>
                     </Link>
-                    <Link to="/gym">
-                      <button className="btn-ghost">💪 Start Gym</button>
-                    </Link>
+
                   </div>
                 </div>
               ) : (
@@ -959,70 +951,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Tab 2: Gym Logs */}
-      {selectedTab === 'gym' && (
-        <div className="dash-tab-content">
-          <div className="dash-card-header-row">
-            <div>
-              <h3 className="dash-section-title">💪 Gym Strength Workouts ({gymWorkouts.length})</h3>
-              <p className="dash-card-sub">Repetition telemetry, estimated tonnage, and set tracking</p>
-            </div>
-            <Link to="/gym">
-              <button className="btn-primary-glow">+ New Gym Workout</button>
-            </Link>
-          </div>
 
-          {gymWorkouts.length === 0 ? (
-            <div className="dash-empty-vibrant">
-              <div className="empty-sparkle">🏋️</div>
-              <h4>No Gym Workouts Logged Yet</h4>
-              <p>Practice squats, push-ups, or bicep curls with real-time AI rep counting.</p>
-              <Link to="/gym">
-                <button className="btn-primary-glow" style={{ marginTop: 12 }}>
-                  Start Gym Mode
-                </button>
-              </Link>
-            </div>
-          ) : (
-            <div className="sessions-grid">
-              {gymWorkouts.map((w, i) => (
-                <div key={w.id || i} className="session-card gym-theme">
-                  <div className="session-card-header">
-                    <div className="session-pose-badge gym">💪 {resolveTitle(w)}</div>
-                    <span className="session-date">{formatDate(w.timestamp)}</span>
-                  </div>
-                  <div className="session-metrics">
-                    <div className="session-metric">
-                      <span className="sm-label">Reps</span>
-                      <span className="sm-value">{w.reps || 0}</span>
-                    </div>
-                    <div className="session-metric">
-                      <span className="sm-label">Sets</span>
-                      <span className="sm-value">{w.sets || 1}</span>
-                    </div>
-                    <div className="session-metric">
-                      <span className="sm-label">Duration</span>
-                      <span className="sm-value">{formatTime(w.duration)}</span>
-                    </div>
-                    <div className="session-metric">
-                      <span className="sm-label">Burned</span>
-                      <span className="sm-value fire">{resolveWorkoutCalories(w)} kcal</span>
-                    </div>
-                  </div>
-                  {w.notes && <p className="session-notes-preview">💬 {w.notes}</p>}
-                  <div className="session-card-actions">
-                    <button className="btn-trash-inline" onClick={() => handleDeleteSession(w)}>
-                      🗑️ Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab 3: Yoga Sessions */}
+      {/* Tab 2: Yoga Sessions */}
       {selectedTab === 'yoga' && (
         <div className="dash-tab-content">
           <div className="dash-card-header-row">

@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   { path: '/', label: 'Home', icon: '🏠' },
   { path: '/dashboard', label: 'Dashboard', icon: '📊' },
   { path: '/start', label: 'Yoga (8)', icon: '🧘' },
-  { path: '/gym', label: 'Gym (15)', icon: '💪' },
+
   { path: '/food-analyzer', label: 'Food Vision (256)', icon: '🥗' },
   { path: '/video-analysis', label: 'Video Analysis', icon: '🎬' },
   { path: '/planner', label: 'Planner', icon: '📅' },
@@ -104,7 +104,9 @@ export default function Navbar({ collapsed, setCollapsed }) {
         {/* Navigation items */}
         <ul className="sidebar-nav">
           {NAV_ITEMS.map((item) => {
-            const isActive = location.pathname === item.path
+            const isActive =
+              location.pathname === item.path ||
+              (item.path === '/food-analyzer' && location.pathname === '/nutrition')
             return (
               <li key={item.path}>
                 <Link

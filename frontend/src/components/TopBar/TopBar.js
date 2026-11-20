@@ -50,7 +50,7 @@ export default function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenComman
         title="Open Global Search (Ctrl + K)"
       >
         <span className="search-icon-symbol">🔍</span>
-        <span className="search-placeholder">Search 8 poses, 15 exercises, 256 foods...</span>
+        <span className="search-placeholder">Search 8 poses, 256 foods...</span>
         <span className="search-shortcut-badge">⌘K / Ctrl+K</span>
       </button>
 
@@ -62,12 +62,7 @@ export default function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenComman
         >
           <span>🧘</span> Yoga (8)
         </Link>
-        <Link
-          to="/gym"
-          className={`quick-nav-pill ${location.pathname === '/gym' ? 'active' : ''}`}
-        >
-          <span>💪</span> Gym AI (15)
-        </Link>
+
         <Link
           to="/food-analyzer"
           className={`quick-nav-pill ${location.pathname === '/food-analyzer' || location.pathname === '/nutrition' ? 'active' : ''}`}
@@ -81,6 +76,12 @@ export default function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenComman
           <span>🎬</span> Video Lab
         </Link>
       </nav>
+
+      {/* Prominent Food Analyzer CTA */}
+      <Link to="/nutrition" className="topbar-start-analyzing-cta" title="Launch AI Food Vision Analyzer">
+        <span className="topbar-cta-sparkle">⚡</span>
+        <span>Start Analyzing</span>
+      </Link>
 
       {/* Right controls: AI engine telemetry, voice toggle, language toggle */}
       <div className="topbar-right-controls">

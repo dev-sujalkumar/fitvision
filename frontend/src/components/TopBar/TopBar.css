@@ -137,6 +137,34 @@
   box-shadow: 0 0 16px rgba(139, 92, 246, 0.25);
 }
 
+/* Prominent Start Analyzing Food Vision CTA */
+.topbar-start-analyzing-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.topbar-start-analyzing-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+  color: #ffffff;
+}
+
+.topbar-cta-sparkle {
+  font-size: 13px;
+}
+
 /* Right Controls */
 .topbar-right-controls {
   display: flex;

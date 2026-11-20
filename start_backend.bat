@@ -1,11 +1,12 @@
 @echo off
-title FitVision AI - PyTorch Food-101 Classifier API Server
+title FitVision AI - Hybrid AI Food Recognition Server
 echo ========================================================
-echo   FitVision AI - PyTorch Food-101 Classifier Server
-echo   Model: EfficientNet-B2 with Grad-CAM Visual Heatmaps
+echo   FitVision AI - Hybrid AI Food Recognition Server
+echo   Primary: YOLOv8m (256 UEC-FOOD Classes)
+echo   Fallback: Vision-Language Model (Gemini / Moondream)
 echo ========================================================
-echo Starting PyTorch Food Classifier API on http://localhost:5050 ...
-cd /d "%~dp0food_classifier"
+echo Starting Hybrid Food Recognition Server on http://localhost:5050 ...
+cd /d "%~dp0food_analyzer"
 python server.py
 if errorlevel 1 (
     echo Python failed or not found on PATH, checking local installations...

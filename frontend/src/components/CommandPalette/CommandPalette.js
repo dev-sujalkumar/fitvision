@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { YOGA_POSES } from '../../utils/yogaPoseLibrary';
-import { EXERCISE_PATTERNS } from '../../utils/gymExercises';
 import { SAMPLE_PLATES } from '../../utils/food101Data';
 import './CommandPalette.css';
 
@@ -27,7 +26,7 @@ export default function CommandPalette({ isOpen, onClose }) {
     { id: 'dest-home', title: 'Home Studio', category: 'Navigation', icon: '🏠', path: '/' },
     { id: 'dest-dash', title: 'Personal Dashboard & Stats', category: 'Navigation', icon: '📊', path: '/dashboard' },
     { id: 'dest-yoga', title: 'Movement & Yoga Studio (8 Poses)', category: 'Discipline', icon: '🧘', path: '/start' },
-    { id: 'dest-gym', title: 'Gym AI Strength Trainer (15 Exercises)', category: 'Discipline', icon: '💪', path: '/gym' },
+
     { id: 'dest-food-analyzer', title: 'Food Vision & Nutrition Studio (256 Foods)', category: 'Discipline', icon: '🥗', path: '/food-analyzer' },
     { id: 'dest-video', title: 'Video Motion Biomechanics Lab', category: 'Discipline', icon: '🎬', path: '/video-analysis' },
     { id: 'dest-plan', title: 'AI Workout Planner', category: 'Tool', icon: '📅', path: '/planner' },
@@ -43,15 +42,7 @@ export default function CommandPalette({ isOpen, onClose }) {
       badge: `${p.caloriesPerMin} kcal/m`,
     })),
 
-    // 15 Gym Exercises
-    ...Object.values(EXERCISE_PATTERNS).map(e => ({
-      id: `gym-${e.id}`,
-      title: `${e.name} (${e.targetJoint})`,
-      category: `Gym · ${e.category.toUpperCase()}`,
-      icon: '🏋️',
-      path: `/gym?exercise=${e.id}`,
-      badge: `${e.caloriesPerRep} kcal/rep`,
-    })),
+
 
     // PyTorch Food-101 Demonstration Plates
     ...SAMPLE_PLATES.map(b => ({
@@ -124,7 +115,7 @@ export default function CommandPalette({ isOpen, onClose }) {
             ref={inputRef}
             type="text"
             className="cmd-input"
-            placeholder="Type a command, yoga pose, or gym workout..."
+            placeholder="Type a command, yoga pose, or food..."
             value={query}
             onChange={e => {
               setQuery(e.target.value);
@@ -150,11 +141,11 @@ export default function CommandPalette({ isOpen, onClose }) {
             type="button"
             className="cmd-pill"
             onClick={() => {
-              navigate('/gym?exercise=SQUAT');
+              navigate('/food-analyzer');
               onClose();
             }}
           >
-            🏋️ Squat Live
+            🥗 Food Vision
           </button>
           <button
             type="button"

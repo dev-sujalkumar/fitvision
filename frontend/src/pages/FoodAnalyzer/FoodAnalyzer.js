@@ -12,6 +12,10 @@ import {
   classifyWithPyTorch,
   loadSamplePlate,
   setGeminiApiKey,
+  getGeminiApiKey,
+  correctDishOnline,
+  getVlmConfig,
+  setVlmConfig,
 } from '../../utils/foodAnalyzerService';
 import { saveFoodEntry, getFoodDiary, deleteFoodEntry } from '../../utils/storage';
 import { speakInstruction, soundEffects } from '../../utils/voiceCoach';
@@ -24,9 +28,15 @@ export default function FoodAnalyzer() {
   const [sliderPos, setSliderPos] = useState(50); // 0-100% for Grad-CAM comparison slider
 
   // Model & Server Status
-  const [serverHealth, setServerHealth] = useState({ online: false, model: 'EfficientNet-B2 (PyTorch)' });
+  const [serverHealth, setServerHealth] = useState({ online: false, model: 'YOLOv8m + VLM Hybrid' });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [geminiKeyInput, setGeminiKeyInput] = useState('');
+  const [vlmProviderMode, setVlmProviderMode] = useState('auto');
+  const [vlmStatusInfo, setVlmStatusInfo] = useState(null);
+
+  // Manual Food Correction State
+  const [isCorrecting, setIsCorrecting] = useState(false);
+  const [correctionInput, setCorrectionInput] = useState('');
 
   // Analysis & Image State — INITIAL STATE IS EMPTY! (No pre-loaded pizza)
   const [analysis, setAnalysis] = useState(null);
@@ -63,6 +73,14 @@ export default function FoodAnalyzer() {
     checkServerHealth().then((health) => {
       setServerHealth(health);
     });
+    const key = getGeminiApiKey();
+    if (key) setGeminiKeyInput(key);
+    getVlmConfig().then((cfg) => {
+      if (cfg) {
+        setVlmStatusInfo(cfg);
+        if (cfg.preferred_mode) setVlmProviderMode(cfg.preferred_mode);
+      }
+    });
     loadDiary();
   }, []);
 
@@ -79,13 +97,16 @@ export default function FoodAnalyzer() {
 
   // Re-check server on demand
   const handleRefreshServer = async () => {
-    showToast('Checking PyTorch API status on port 5050...');
+    showToast('Checking Hybrid Food Recognition API on port 5050...');
     const health = await checkServerHealth();
     setServerHealth(health);
+    const cfg = await getVlmConfig();
+    if (cfg) setVlmStatusInfo(cfg);
+
     if (health.online) {
-      showToast('🟢 PyTorch Food-101 Server is online & ready!');
+      showToast('🟢 Hybrid AI Server (YOLOv8 + VLM) online & ready!');
     } else {
-      showToast('⚪ PyTorch Server offline. Start via start_backend.bat');
+      showToast('⚪ Backend Server offline. Start via start_backend.bat');
     }
   };
 
@@ -201,14 +222,14 @@ export default function FoodAnalyzer() {
 
     setIsAnalyzing(true);
     setErrorMsg(null);
-    setScanStage('Initializing PyTorch EfficientNet-B2 neural net...');
+    setScanStage('Initializing YOLOv8m food detector (256 classes)...');
 
     const timer1 = setTimeout(() => {
-      setScanStage('Extracting deep convolutional feature activations...');
+      setScanStage('Extracting multi-scale bounding features & confidence scores...');
     }, 400);
 
     const timer2 = setTimeout(() => {
-      setScanStage('Computing Grad-CAM explainability heatmap layers...');
+      setScanStage('Evaluating confidence & checking VLM fallback routing...');
     }, 900);
 
     try {
@@ -222,7 +243,7 @@ export default function FoodAnalyzer() {
         soundEffects.playFanfare();
       } catch (e) {}
     } catch (err) {
-      console.warn('PyTorch inference error:', err);
+      console.warn('Food inference error:', err);
       setErrorMsg(`Inference notice: ${err.message}.`);
     } finally {
       clearTimeout(timer1);
@@ -230,6 +251,99 @@ export default function FoodAnalyzer() {
       setIsAnalyzing(false);
       setScanStage('');
     }
+  };
+
+  // Manual Food Correction Handler
+  const handleManualCorrection = async (e) => {
+    e.preventDefault();
+    if (!correctionInput.trim() || !analysis?.dishes?.[0]) return;
+    const targetDish = analysis.dishes[0];
+
+    try {
+      const corrected = await correctDishOnline(targetDish.id, correctionInput.trim(), portionGrams, plateDiameter);
+      if (corrected) {
+        const updatedDishes = [corrected, ...analysis.dishes.slice(1)];
+        const totCal = updatedDishes.reduce((a, d) => a + d.calories, 0);
+        const totPro = updatedDishes.reduce((a, d) => a + d.protein, 0);
+        const totCarb = updatedDishes.reduce((a, d) => a + d.carbs, 0);
+        const totFat = updatedDishes.reduce((a, d) => a + d.fat, 0);
+        const totW = updatedDishes.reduce((a, d) => a + d.weight_g, 0);
+        const score = calculateNutriScore(totCal, totPro, totCarb, totFat);
+
+        setAnalysis({
+          ...analysis,
+          plate_name: `${corrected.icon || '🍲'} ${corrected.name}`,
+          cuisine: corrected.cuisine || analysis.cuisine,
+          dishes: updatedDishes,
+          totals: {
+            calories: Math.round(totCal * 10) / 10,
+            protein: Math.round(totPro * 10) / 10,
+            carbs: Math.round(totCarb * 10) / 10,
+            fat: Math.round(totFat * 10) / 10,
+            weight_g: Math.round(totW * 10) / 10,
+          },
+          nutriScore: score,
+          micronutrients: corrected.micronutrients || analysis.micronutrients,
+        });
+        setIsCorrecting(false);
+        setCorrectionInput('');
+        showToast(`✅ Food corrected to: ${corrected.name}`);
+      } else {
+        // Local calculation fallback
+        const nutr = calculateFoodNutrition(correctionInput.trim(), portionGrams);
+        const updatedDish = {
+          ...targetDish,
+          name: nutr.name,
+          food: correctionInput.trim().toLowerCase(),
+          icon: nutr.icon,
+          calories: nutr.calories,
+          protein: nutr.protein,
+          carbs: nutr.carbs,
+          fat: nutr.fat,
+          fiber: nutr.fiber,
+          recognition_badge: '✏️ User Corrected',
+          recognition_source: 'user_correction',
+          nutrition_source: 'database_derived',
+          is_visually_estimated: false,
+        };
+        const updatedDishes = [updatedDish, ...analysis.dishes.slice(1)];
+        const totCal = updatedDishes.reduce((a, d) => a + d.calories, 0);
+        const totPro = updatedDishes.reduce((a, d) => a + d.protein, 0);
+        const totCarb = updatedDishes.reduce((a, d) => a + d.carbs, 0);
+        const totFat = updatedDishes.reduce((a, d) => a + d.fat, 0);
+
+        setAnalysis({
+          ...analysis,
+          plate_name: `${nutr.icon} ${nutr.name}`,
+          dishes: updatedDishes,
+          totals: {
+            calories: Math.round(totCal * 10) / 10,
+            protein: Math.round(totPro * 10) / 10,
+            carbs: Math.round(totCarb * 10) / 10,
+            fat: Math.round(totFat * 10) / 10,
+            weight_g: portionGrams,
+          },
+          nutriScore: calculateNutriScore(totCal, totPro, totCarb, totFat),
+          micronutrients: nutr.micronutrients,
+        });
+        setIsCorrecting(false);
+        setCorrectionInput('');
+        showToast(`✅ Food corrected to: ${nutr.name}`);
+      }
+    } catch (err) {
+      console.warn('Correction error:', err);
+    }
+  };
+
+  // VLM Config Save Handler
+  const handleSaveVlmConfig = async () => {
+    setGeminiApiKey(geminiKeyInput);
+    const updated = await setVlmConfig(vlmProviderMode, geminiKeyInput);
+    if (updated) {
+      setVlmStatusInfo(updated.current_status);
+    }
+    setIsSettingsOpen(false);
+    showToast('⚙️ AI Vision Engine settings saved!');
   };
 
   // Dynamic Portion Rescaling
@@ -353,7 +467,7 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
             <span className="fa-title-icon">🥗</span> Food Vision &amp; Nutrition Studio
           </h1>
           <p>
-            PyTorch EfficientNet-B2 neural food recognition with Grad-CAM explainability heatmaps
+            Hybrid AI Food Recognition: YOLOv8m (256 classes) + VLM Fallback (Gemini / Moondream)
           </p>
         </div>
 
@@ -362,16 +476,16 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
             type="button"
             className="fa-server-status-pill"
             onClick={handleRefreshServer}
-            title="Click to re-ping PyTorch Backend on Port 5050"
+            title="Click to re-ping Hybrid Backend on Port 5050"
           >
             <span className={`fa-status-dot ${serverHealth.online ? 'online' : 'offline'}`} />
             <span>
-              {serverHealth.online ? 'PyTorch Server: Online (5050)' : 'PyTorch Server: Offline'}
+              {serverHealth.online ? 'Hybrid Server: Online (5050)' : 'Server: Offline'}
             </span>
           </button>
 
-          <span className="fa-meta-badge">EfficientNet-B2</span>
-          <span className="fa-meta-badge">101 Categories</span>
+          <span className="fa-meta-badge">⚡ YOLOv8m (256 Classes)</span>
+          <span className="fa-meta-badge">🔮 VLM Fallback Active</span>
 
           <button
             type="button"
@@ -506,16 +620,16 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
                 <div className="fa-cap-item">
                   <span className="fa-cap-icon">⚡</span>
                   <div>
-                    <strong>101 Food Classes</strong>
-                    <span>PyTorch EfficientNet-B2</span>
+                    <strong>256 YOLO Classes</strong>
+                    <span>Fast YOLOv8m Neural Net</span>
                   </div>
                 </div>
 
                 <div className="fa-cap-item">
-                  <span className="fa-cap-icon">🔥</span>
+                  <span className="fa-cap-icon">🔮</span>
                   <div>
-                    <strong>Grad-CAM Heatmaps</strong>
-                    <span>Visual explainability layers</span>
+                    <strong>VLM AI Fallback</strong>
+                    <span>Gemini Vision &amp; Moondream</span>
                   </div>
                 </div>
 
@@ -822,18 +936,86 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
               <div className="fa-panel-card">
                 {analysis ? (
                   <>
+                    {/* VLM Fallback Activation Notification */}
+                    {analysis.fallback_activated && (
+                      <div className="fa-vlm-fallback-banner">
+                        <div className="fa-vlm-banner-icon">🔮</div>
+                        <div className="fa-vlm-banner-text">
+                          <strong>Advanced AI Vision Model Activated</strong>
+                          <span>
+                            {analysis.fallback_reason ||
+                              'YOLOv8 confidence threshold triggered. Multi-modal VLM analyzed this meal.'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Hero Dish Card */}
                     <div className="fa-dish-hero-card">
                       <div className="fa-dish-hero-title">
                         <span className="fa-hero-icon">{analysis.dishes?.[0]?.icon || '🍲'}</span>
-                        <div>
-                          <h2 className="fa-hero-name">{analysis.plate_name}</h2>
-                          <div className="fa-hero-meta-row">
-                            <span className="fa-hero-confidence">
-                              🎯 Neural Match: {Math.round((analysis.dishes?.[0]?.confidence || 0.95) * 100)}%
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                            <h2 className="fa-hero-name" style={{ margin: 0 }}>
+                              {analysis.plate_name}
+                            </h2>
+                            <button
+                              type="button"
+                              className="fa-correct-btn"
+                              onClick={() => {
+                                setCorrectionInput(analysis.dishes?.[0]?.name || '');
+                                setIsCorrecting(!isCorrecting);
+                              }}
+                              title="Manually correct food recognition"
+                            >
+                              ✏️ {isCorrecting ? 'Close' : 'Correct Food'}
+                            </button>
+                          </div>
+
+                          {/* Manual Correction Inline Form */}
+                          {isCorrecting && (
+                            <form onSubmit={handleManualCorrection} className="fa-correction-form">
+                              <input
+                                type="text"
+                                className="fa-correction-input"
+                                placeholder="Type correct dish (e.g. Paneer Butter Masala, Roti, Dosa)..."
+                                value={correctionInput}
+                                onChange={(e) => setCorrectionInput(e.target.value)}
+                                autoFocus
+                              />
+                              <button type="submit" className="fa-correction-save-btn">
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                className="fa-correction-cancel-btn"
+                                onClick={() => setIsCorrecting(false)}
+                              >
+                                Cancel
+                              </button>
+                            </form>
+                          )}
+
+                          <div className="fa-badge-row">
+                            <span className="fa-recognition-badge-chip">
+                              {analysis.recognition_badge || '⚡ YOLOv8 + VLM Hybrid'}
                             </span>
-                            <span className="fa-engine-tag">
-                              {analysis.model || 'EfficientNet-B2'}
+                            {analysis.cuisine && (
+                              <span className="fa-cuisine-tag">
+                                🌍 {analysis.cuisine}
+                              </span>
+                            )}
+                            <span
+                              className={`fa-source-badge-chip ${
+                                analysis.dishes?.[0]?.is_visually_estimated ? 'estimated' : 'verified'
+                              }`}
+                            >
+                              {analysis.dishes?.[0]?.is_visually_estimated
+                                ? '👁️ Visually Estimated'
+                                : '📋 Database Verified'}
+                            </span>
+                            <span className="fa-hero-confidence">
+                              🎯 Match: {Math.round((analysis.dishes?.[0]?.confidence || 0.95) * 100)}%
                             </span>
                           </div>
                         </div>
@@ -850,6 +1032,31 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
                         <span className="fa-score-label">NutriScore</span>
                       </div>
                     </div>
+
+                    {/* Visible Ingredients & Culinary Details (When provided by VLM or Extended DB) */}
+                    {analysis.dishes?.[0] && (
+                      (analysis.dishes[0].visible_ingredients?.length > 0 || analysis.dishes[0].cooking_method) && (
+                        <div className="fa-dish-details-card">
+                          {analysis.dishes[0].visible_ingredients?.length > 0 && (
+                            <>
+                              <div className="fa-details-label">Visible Key Ingredients</div>
+                              <div className="fa-ingredients-wrap">
+                                {analysis.dishes[0].visible_ingredients.map((ing, i) => (
+                                  <span key={i} className="fa-ingredient-pill">
+                                    {ing}
+                                  </span>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                          {analysis.dishes[0].cooking_method && (
+                            <p className="fa-cooking-method-text">
+                              🍳 <em>{analysis.dishes[0].cooking_method}</em>
+                            </p>
+                          )}
+                        </div>
+                      )
+                    )}
 
                     {/* Portion Slider */}
                     <div className="fa-portion-control">
@@ -1284,16 +1491,66 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
               marginBottom: '20px'
             }}>
               <div style={{ fontWeight: 700, color: '#93c5fd', marginBottom: '4px' }}>
-                🔥 Active Primary Engine: PyTorch Food-101
+                ⚡ Primary Neural Model: YOLOv8m (UEC-256)
               </div>
               <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1', lineHeight: 1.4 }}>
-                The vision studio runs the PyTorch EfficientNet-B2 transfer learning classifier with real-time Grad-CAM explainability hooks on http://localhost:5050.
+                Real-time YOLOv8 detector trained on 256 food classes with automatic Vision-Language Model fallback for uncatalogued, complex, or Indian dishes.
               </p>
             </div>
 
+            {/* Provider Selection */}
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>
+                Vision-Language Model (VLM) Fallback Mode
+              </label>
+              <select
+                value={vlmProviderMode}
+                onChange={(e) => setVlmProviderMode(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: 'rgba(15, 23, 42, 0.9)',
+                  border: '1px solid var(--fa-card-border)',
+                  borderRadius: '10px',
+                  color: '#fff',
+                  boxSizing: 'border-box',
+                  fontSize: '13px'
+                }}
+              >
+                <option value="auto">Auto (Cloud Gemini Vision ➔ Local Ollama Moondream)</option>
+                <option value="gemini">Cloud VLM (Google Gemini 1.5 Flash)</option>
+                <option value="ollama">Local VLM (Ollama Moondream - Offline CPU)</option>
+              </select>
+            </div>
+
+            {/* Live Provider Status */}
+            {vlmStatusInfo && (
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.6)',
+                border: '1px solid var(--fa-card-border)',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '18px',
+                fontSize: '12px'
+              }}>
+                <div style={{ color: '#94a3b8', marginBottom: '6px', fontWeight: 600 }}>Engine Diagnostic Status:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ color: vlmStatusInfo.gemini_available ? '#34d399' : '#f87171' }}>
+                    • Gemini Vision Cloud: {vlmStatusInfo.gemini_available ? '🟢 Ready (Key Configured)' : '⚪ Missing API Key'}
+                  </div>
+                  <div style={{ color: vlmStatusInfo.ollama_moondream_available ? '#34d399' : '#94a3b8' }}>
+                    • Ollama Moondream Local: {vlmStatusInfo.ollama_moondream_available ? '🟢 Ready (Local Port 11434)' : '⚪ Daemon Standby'}
+                  </div>
+                  <div style={{ color: '#38bdf8' }}>
+                    • Offline Vision Transformer: 🟢 Ready (Cached)
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>
-                Optional API Key (AIzaSy...)
+                Gemini Vision API Key (Optional for Cloud VLM)
               </label>
               <input
                 type="password"
@@ -1310,19 +1567,18 @@ Nutri-Score: ${analysis.nutriScore?.grade || 'A'}`;
                   boxSizing: 'border-box'
                 }}
               />
+              <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                Used for Cloud VLM recognition of uncatalogued Indian & international foods.
+              </span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button
                 type="button"
                 className="fa-voice-btn"
-                onClick={() => {
-                  setGeminiApiKey(geminiKeyInput);
-                  setIsSettingsOpen(false);
-                  showToast('Settings saved successfully');
-                }}
+                onClick={handleSaveVlmConfig}
               >
-                Save &amp; Close
+                Save &amp; Apply
               </button>
             </div>
           </div>

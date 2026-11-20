@@ -6,7 +6,7 @@ import TopBar from './components/TopBar/TopBar'
 import CommandPalette from './components/CommandPalette/CommandPalette'
 import Home from './pages/Home/Home'
 import Yoga from './pages/Yoga/Yoga'
-import Gym from './pages/Gym/Gym'
+
 import Dashboard from './pages/Dashboard/Dashboard'
 import WorkoutHistory from './pages/WorkoutHistory/WorkoutHistory'
 import WorkoutPlanner from './pages/WorkoutPlanner/WorkoutPlanner'
@@ -56,7 +56,7 @@ export default function App() {
           <Routes>
             <Route path='/' element={<Home />} />
             <Route path='/start' element={<Yoga />} />
-            <Route path='/gym' element={<Gym />} />
+
             <Route path='/dashboard' element={<Dashboard />} />
             <Route path='/history' element={<WorkoutHistory />} />
             <Route path='/planner' element={<WorkoutPlanner />} />
